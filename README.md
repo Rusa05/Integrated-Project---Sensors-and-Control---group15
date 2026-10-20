@@ -1,8 +1,42 @@
-# Integrated-Project---Sensors-and-Control---group15
+# Track A — TurtleBot3 Navigation and Visual Docking
 
-1   Task  summary
-This is a group project.  Groups have 3–4 members for students enrolled in 41014, and 1–2 members for students enrolled in  42043.   Teams integrate sensing,  estimation, and control on a simulated platform.  Two tracks are offered and may be personalised, or a team may propose its own project of equivalent scope.
-Simulation and hardware
-A simulation component is compulsory for all students, and all five criteria are assessed on it.  Real hardware implementation is available to teams who have demonstrated their simulation component working by Week 12, which is required for the compulsory hardware induction.  Teams who have not demonstrated a working simulation cannot attend the induction and complete the project in simulation only.
-Hardware work is optional and is not required for any band up to  Distinction. A working hardware implementation of the team’s pipeline, shown in the video and reported on the project page, is marked as High Distinction evidence:  it satisfies the independent contribution expected at that band for Part B (sensing and calibration on the real sensor), Part D (control on the real platform) and Part E (robustness under real noise and disturbance), provided the work is also of Distinction standard in that criterion.  A quantitative comparison between simulation and hardware results strengthens the case.  A hardware result does not replace missing simulation evidence, and a hardware attempt that does not complete the task is marked on what it shows.
-Track  A,  mobile robot:  visual waypoint navigation.  TurtleBot3 with 2D LiDAR and camera in MuJoCo.  Navigate a room with obstacles using the LiDAR and visually dock to the ArUco-marked charging station.  Required:  state-space model of the platform; EKF fusing wheel-encoder odometry with range and bearing, or pose, measurements from the camera; state-feedback or LQR trajectory tracker.  Constraint:  the controller must use the estimated state, never ground truth.
+UTS Sensors and Control Integrated Project.
+
+## Project goal
+Navigate a room with obstacles using LiDAR and visually dock at an
+ArUco-marked charging station. The final controller will use state
+estimates from an EKF combining wheel odometry and camera measurements.
+
+## Current progress
+Initial MuJoCo setup and a forward-turn-stop movement test.
+Camera processing, LiDAR processing, EKF estimation and autonomous
+navigation are still to be implemented.
+
+## Files
+- simulate_turtlebot.py: initial movement test.
+- robotis_mujoco_menagerie/robotis_tb3/: robot model and assets.
+- requirements.txt: Python dependencies.
+
+## Setup on macOS
+From the project folder, run these commands in order:
+
+    python3 -m venv .venv
+    source .venv/bin/activate
+    python -m pip install --upgrade pip
+    python -m pip install -r requirements.txt
+    python .venv/bin/mjpython simulate_turtlebot.py
+
+## Sources
+Robot model:
+https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie
+
+Simulation-loop structure adapted from the supplied UR3 tutorial.
+The model licence is retained in the robotis_tb3 folder.
+
+## Team and contributions
+Add the group number, team members and each member's contributions here.
+
+## Generative AI declaration
+ChatGPT assisted with setup troubleshooting, project planning and
+adapting the initial movement-test script. Update this declaration as
+the project develops.
