@@ -136,7 +136,25 @@ def calibrate(seed0=0):
     x = np.concatenate([spins[:, 2], turns[:, 1]]); y = np.concatenate([spins[:, 1], turns[:, 0]])
     g = float(x @ y / (x @ x))                                   # LS through origin, pooled
     icr = icr_from_turns(turns)
-    return table, g, g_steady, spins, turns, icr
+    # Turn gain while rolling: steady arcs at several forward speeds, both turn directions
+    cfg_t = load_config(use_calibration=False)
+    cfg_t.robot.radius_table = (table[:, 0].tolist(), table[:, 1].tolist())
+    cfg_t.robot.turn_gain = g
+    dd_t = DiffDrive(cfg_t)
+    gtab = [[0.0, g]]
+    for v in (0.03, 0.06, 0.10, 0.14):
+        gs = []
+        for w in (0.3, -0.3, 0.6, -0.6):
+            sim, _ = open_space_sim(seed); seed += 1
+            sim.set_wheel_speeds(*dd_t.inverse(v, w))
+            pkt = sim.step(1.0)
+            a0 = wheel_angles(sim, pkt)
+            pkt, dth = track_heading(sim, 3.0)
+            dphi = wheel_angles(sim, pkt) - a0
+            gs.append(dth / (dphi[1] - dphi[0]))
+        w_mean = float(np.interp(v, dd_t._vv, dd_t._ww))
+        gtab.append([w_mean, float(np.mean(gs))])
+    return table, g, g_steady, spins, turns, icr, np.array(gtab)
 
 
 def odo_step(dd, dphi, dt, pose):
@@ -226,10 +244,11 @@ def main():
     FIG.mkdir(parents=True, exist_ok=True)
     cfg0 = load_config(use_calibration=False)
     r0, b0 = cfg0.robot.wheel_radius, cfg0.robot.wheel_base
-    table, g, g_steady, spins, turns, icr = calibrate()
+    table, g, g_steady, spins, turns, icr, gtab = calibrate()
     cfg1 = copy.deepcopy(cfg0)
     cfg1.robot.radius_table = (table[:, 0].tolist(), table[:, 1].tolist())
     cfg1.robot.turn_gain = g
+    cfg1.robot.turn_table = (gtab[:, 0].tolist(), gtab[:, 1].tolist())
     x_icr = float(np.median(icr[:, 0]))
     cfg1.robot.icr_x = x_icr
     dd1 = DiffDrive(cfg1)
@@ -238,6 +257,7 @@ def main():
     print("r_eff(w_mean):", dict(zip(table[:, 0].round(1), table[:, 1].round(5))))
     print(f"turn gain: steady spins {g_steady:.5f}, pooled with controller turns g = {g:.5f}  "
           f"(equivalent b at cruise r: {cruise/g:.4f} m, {100*(cruise/g/b0-1):+.1f} % vs datasheet)")
+    print("turn gain vs |w_mean| (rolling):", dict(zip(gtab[:, 0].round(2), gtab[:, 1].round(5))))
     print(f"ICR offset (body frame, median of {len(icr)} turns): x = {1000*x_icr:+.1f} mm "
           f"(IQR {1000*np.percentile(icr[:,0],25):+.1f}..{1000*np.percentile(icr[:,0],75):+.1f}),"
           f" y = {1000*np.median(icr[:,1]):+.1f} mm")
@@ -266,6 +286,7 @@ def main():
     c = json.loads(CALIB_FILE.read_text()) if CALIB_FILE.exists() else {}
     c["odometry"] = {"radius_table": [table[:, 0].tolist(), table[:, 1].tolist()],
                      "turn_gain": g, "turn_gain_steady_spins": g_steady,
+                     "turn_table": [gtab[:, 0].tolist(), gtab[:, 1].tolist()],
                      "icr_x": x_icr, "icr_samples": icr.tolist(),
                      "k_rot_th": 1.2 * k_rot_th, "k_rot_xy": 1.2 * k_rot_xy,
                      "k_rot_th_measured": k_rot_th, "k_rot_xy_measured": k_rot_xy,

@@ -68,9 +68,7 @@ class WorldSpec:
     landmarks: list = field(default_factory=list)
     obstacles: list = field(default_factory=list)
     start: tuple = (0.6, 0.6, 0.0)  # x, y, yaw of the robot base in W
-    floor_friction: float = 1.0
-    # Low-friction floor patches (x, y, half_x, half_y, mu) used as a wheel-slip disturbance.
-    slip_patches: list = field(default_factory=list)
+    floor_friction: float = 1.0   # floor/tyre friction; odometry was calibrated at 1.0
     extra_assets: str = ""   # raw MJCF, used by the calibration scenes
     extra_bodies: str = ""
 
@@ -195,11 +193,6 @@ def build_xml(spec: WorldSpec) -> str:
         else:
             bodies.append(f'<geom name="obs{i}" type="cylinder" size="{o.size[0]} 0.20" '
                           f'pos="{o.x} {o.y} 0.20" rgba="0.3 0.4 0.6 1"/>')
-
-    for i, (x, y, px, py, mu) in enumerate(spec.slip_patches):
-        # priority=1 makes this geom's friction win over the tyre's default (max-rule).
-        bodies.append(f'<geom name="slip{i}" type="box" size="{px} {py} 0.0005" pos="{x} {y} 0.0005" '
-                      f'friction="{mu} 0.005 0.0001" priority="1" rgba="0.6 0.8 1 0.6"/>')
 
     sx, sy, syaw = spec.start
     robot = (MODEL_DIR / "turtlebot3_waffle_pi_sensors.xml").as_posix()

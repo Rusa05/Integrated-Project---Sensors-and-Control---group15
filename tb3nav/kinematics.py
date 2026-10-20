@@ -5,14 +5,15 @@ textbook model (r = 33 mm, b = 287 mm, rotation about the axle midpoint) misses:
 
   1. the effective rolling radius depends on wheel speed and direction (longitudinal slip
      against the dragging rear casters grows with forward speed)  -> lookup table r_eff(w)
-  2. the turning gain is ~20 % lower than r/b (tyre scrub)        -> calibrated g
+  2. the turning gain is lower than r/b (tyre and caster scrub), most of all when turning
+     on the spot; rolling forward reduces the scrub              -> table g(|w_mean|)
   3. the instantaneous centre of rotation (ICR) is NOT the axle midpoint: on the spot the
      robot turns about a point x_icr ahead/behind the axle, so base_link moves sideways
      by -x_icr * dtheta                                            -> calibrated x_icr
 
     ds     = r_eff(w_mean) * (dphi_l + dphi_r) / 2       (forward, body x)
     dlat   = -x_icr * dtheta                              (sideways, body y)
-    dtheta = g * (dphi_r - dphi_l)
+    dtheta = g(|w_mean|) * (dphi_r - dphi_l)
 
 With the datasheet values: r_eff = 0.033 everywhere, g = 0.033 / 0.288, x_icr = 0.
 """
@@ -33,6 +34,12 @@ class DiffDrive:
             self.w_tab = np.array([-10.0, 10.0])
             self.r_tab = np.array([rb.wheel_radius, rb.wheel_radius])
         self.g = rb.turn_gain if rb.turn_gain is not None else rb.wheel_radius / rb.wheel_base
+        if rb.turn_table is not None:
+            self.gw_tab = np.asarray(rb.turn_table[0], float)
+            self.g_tab = np.asarray(rb.turn_table[1], float)
+            self.g = float(self.g_tab[0])            # in-place value
+        else:
+            self.gw_tab, self.g_tab = np.array([0.0, 10.0]), np.array([self.g, self.g])
         self.x_icr = rb.icr_x
         self.b_equiv = rb.wheel_radius / self.g     # equivalent track width, for reporting
         self.max_w = rb.max_wheel_speed
@@ -43,11 +50,14 @@ class DiffDrive:
     def r(self, w_mean):
         return np.interp(w_mean, self.w_tab, self.r_tab)
 
+    def g_at(self, w_mean):
+        return np.interp(abs(w_mean), self.gw_tab, self.g_tab)
+
     def forward(self, dphi_l, dphi_r, dt):
         """Wheel rotations over dt -> (ds, dtheta) of the base (ds along body x)."""
         w_mean = (dphi_l + dphi_r) / (2 * dt) if dt > 0 else 0.0
         ds = self.r(w_mean) * (dphi_l + dphi_r) / 2
-        return ds, self.g * (dphi_r - dphi_l)
+        return ds, self.g_at(w_mean) * (dphi_r - dphi_l)
 
     def forward3(self, dphi_l, dphi_r, dt):
         """(ds, dlat, dtheta): includes the sideways motion from the ICR offset."""
@@ -64,7 +74,7 @@ class DiffDrive:
     def inverse(self, v, w):
         """Desired (v [m/s], w [rad/s]) -> wheel speed commands (left, right) [rad/s]."""
         w_mean = np.interp(v, self._vv, self._ww)
-        half = w / (2 * self.g)
+        half = w / (2 * self.g_at(w_mean))
         wl, wr = w_mean - half, w_mean + half
         # scale both down together if a wheel would saturate (keeps the path curvature)
         s = max(1.0, abs(wl) / self.max_w, abs(wr) / self.max_w)

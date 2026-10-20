@@ -70,5 +70,30 @@ def summarise(res) -> dict:
         "effort_w2": float(np.sum(cmd[:, 1] ** 2) * dt),
         "effort_dw": float(np.sum(np.abs(np.diff(cmd[:, 1])))),       # yaw-rate chatter
         "n_replans": sum("planned" in ev[1] for ev in res.events),
+        "n_relocalise": sum("re-localising" in ev[1] for ev in res.events),
         "wall_time_s": float(res.wall_time),
     }
+
+
+def disturbance_metrics(res, dist) -> dict:
+    """Push response: peak estimation error after the push and time to re-converge."""
+    out = {"push_peak_err_m": np.nan, "push_recovery_s": np.nan, "push_true_disp_m": np.nan}
+    if dist is None or dist.push_time is None:
+        return out
+    log = res.log
+    t = log["t"]
+    m = init_mask(log)
+    err = np.where(m, np.hypot(*(log["est"][:, :2] - log["true"][:, :2]).T), np.nan)
+    i0 = np.searchsorted(t, dist.push_time)
+    if i0 >= len(t) - 2:
+        return out
+    pre = err[max(0, i0 - 100):i0]
+    thresh = max(0.03, 2 * np.sqrt(np.nanmean(pre ** 2))) if np.isfinite(pre).any() else 0.03
+    after = err[i0:]
+    j = int(np.nanargmax(after))
+    out["push_peak_err_m"] = float(after[j])
+    i1 = np.searchsorted(t, dist.push_time + dist.push_duration + 1.0)
+    out["push_true_disp_m"] = float(np.hypot(*(log["true"][min(i1, len(t) - 1), :2] - log["true"][i0, :2])))
+    below = np.where(after[j:] < thresh)[0]
+    out["push_recovery_s"] = float(t[i0 + j + below[0]] - dist.push_time) if len(below) else np.nan
+    return out

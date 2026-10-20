@@ -32,6 +32,7 @@ class Robot:
     radius_table: tuple | None = None      # (calibrated) ([w_mean...], [r_eff...]), see kinematics.py
     turn_gain: float | None = None         # (calibrated) dtheta / (dphi_r - dphi_l)
     icr_x: float = 0.0                     # (calibrated) ICR offset along body x [m]
+    turn_table: tuple | None = None        # (calibrated) ([|w_mean|...], [g...])
     max_wheel_speed: float = 6.0           # rad/s, below the 7.88 rad/s actuator ctrlrange
     # Motor firmware (emulates Dynamixel velocity-mode PI loop); see sim.py
     firmware_ki: float = 40.0
@@ -124,6 +125,8 @@ def load_config(use_calibration: bool = True) -> Config:
             cfg.robot.radius_table = tuple(od["radius_table"])
         cfg.robot.turn_gain = od.get("turn_gain", cfg.robot.turn_gain)
         cfg.robot.icr_x = od.get("icr_x", cfg.robot.icr_x)
+        if "turn_table" in od:
+            cfg.robot.turn_table = tuple(od["turn_table"])
         cfg.ekf.k_rot_th = od.get("k_rot_th", cfg.ekf.k_rot_th)
         cfg.ekf.k_rot_xy = od.get("k_rot_xy", cfg.ekf.k_rot_xy)
         mn = c.get("marker_noise", {})

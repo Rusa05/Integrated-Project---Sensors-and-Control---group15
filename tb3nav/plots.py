@@ -43,8 +43,6 @@ def draw_world(ax, spec: W.WorldSpec, grid=None, res=0.05):
         ax.plot(lm.x, lm.y, "s", ms=6, color="tab:orange" if lm.id == W.DOCK_ID else "k")
         ax.annotate(str(lm.id), (lm.x, lm.y), xytext=(4 * np.cos(lm.yaw) - 2, 4 * np.sin(lm.yaw) - 2),
                     textcoords="offset points", fontsize=7)
-    for (x, y, px, py, mu) in spec.slip_patches:
-        ax.add_patch(Rectangle((x - px, y - py), 2 * px, 2 * py, color="tab:cyan", alpha=0.3))
     dp = spec.dock_pose()
     ax.plot(dp[0], dp[1], "*", ms=12, color="tab:orange")
     ax.set_xlim(-0.1, W.ROOM_X + 0.1); ax.set_ylim(-0.1, W.ROOM_Y + 0.1)

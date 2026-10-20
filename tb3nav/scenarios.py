@@ -29,10 +29,13 @@ def push(seed):
 
 
 def slip(seed):
-    """A 1.2 x 1.6 m low-friction patch (mu = 0.15) across the route."""
+    """Slippery floor everywhere: mu = 0.25 instead of the 1.0 the odometry was calibrated on.
+    Changes the effective wheel radius, turn gain and ICR for the whole mission.
+    (A local low-friction patch is not used: in MuJoCo its edge acts as a wall for a wheel
+    with mu below the contact slope, trapping the robot - a simulation artefact.)"""
     rng = np.random.default_rng(seed)
     spec = W.randomised_world(rng)
-    spec.slip_patches = [(3.0 + rng.uniform(-0.3, 0.3), 1.0 + rng.uniform(-0.2, 0.2), 0.6, 0.8, 0.15)]
+    spec.floor_friction = 0.25
     return spec, Disturbances()
 
 

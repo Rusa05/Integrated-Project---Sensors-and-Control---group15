@@ -69,6 +69,8 @@ class Robot:
         self.ref = None
         self.e = np.zeros(3)
         self.blocked_t = 0.0
+        self.n_relocalise = 0
+        self.no_path_t = 0.0
 
     # ------------------------------------------------------------------ main step
     def step(self, pkt):
@@ -80,9 +82,19 @@ class Robot:
             obs = self.markers.detect(pkt.image)
             if not self.ekf.initialised:
                 if self.ekf.try_initialise(obs, pkt.t):
-                    self.events.append((pkt.t, "EKF initialised from marker"))
+                    self.events.append((pkt.t, f"EKF initialised ({self.ekf.init_method})"))
             elif not (self.opts.odometry_only and self.state != "LOCALISE"):
                 self.ekf.update(obs, pkt.t)
+                # Divergence detector: several consecutive gated updates mean the prior is
+                # wrong (e.g. the robot was pushed or slid): re-localise and rebuild the map.
+                if self.ekf.consec_rejects >= 6:
+                    self.events.append((pkt.t, "estimate inconsistent (6 gated updates): "
+                                               "re-localising, map reset"))
+                    self.ekf.reset()
+                    self.grid = OccupancyGrid(self.cfg)
+                    self.n_relocalise += 1
+                    self.state = "LOCALISE"
+                    self.traj = None
         self.last_obs = obs
         if pkt.scan is not None and self.ekf.initialised:
             self.grid.integrate(self.ekf.s, pkt.scan, pkt.scan_angles)
@@ -103,9 +115,10 @@ class Robot:
         s = ekf.s
         self.ref = None
         if self.state == "LOCALISE":
-            # spin slowly until initialised and the heading std is below 3 degrees
+            # spin slowly until initialised, heading std < 3 deg and position std < 3 cm
             self.spin_t += self.dt
-            if ekf.initialised and np.sqrt(ekf.P[2, 2]) < 0.05 and ekf.n_updates >= 3:
+            if ekf.initialised and np.sqrt(ekf.P[2, 2]) < 0.05 and ekf.n_updates >= 3 \
+                    and np.sqrt(ekf.P[0, 0] + ekf.P[1, 1]) < 0.03 and t - ekf.t_init > 0.3:
                 self._set_state("PLAN", t, "(localised)")
                 return 0.0, 0.0
             return 0.0, 0.35
@@ -163,8 +176,15 @@ class Robot:
         path = plan_path(self.grid, s[:2], self.predock[:2])
         self.last_plan_t = t
         if path is None:
-            self.events.append((t, "planner: no path, rotating to scan"))
+            if self.no_path_t == 0.0:
+                self.events.append((t, "planner: no path, rotating to scan"))
+            self.no_path_t += self.dt
+            if self.no_path_t > 6.0:             # persistent: the map is probably corrupted
+                self.events.append((t, "planner: no path for 6 s, map reset"))
+                self.grid = OccupancyGrid(self.cfg)
+                self.no_path_t = 0.0
             return 0.0, 0.3
+        self.no_path_t = 0.0
         self.traj = Trajectory(path, self.cfg, grid=self.grid, end_heading=self.predock[2])
         self.path = path
         self.events.append((t, f"planned {self.traj.length:.2f} m, {len(path)} waypoints"))
@@ -246,5 +266,6 @@ def run_mission(spec: W.WorldSpec, dist: Disturbances | None = None, seed: int =
     res = RunResult(log, robot.events, bool(success), err_dock, sim.collisions, sim.data.time,
                     robot.ekf.log, spec, robot.grid.logodds.copy(), time.time() - t0)
     res.robot = robot
+    res.dist = sim.dist
     sim.close()
     return res

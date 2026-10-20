@@ -63,31 +63,81 @@ class EKF:
         self.use_yaw = cfg.ekf.use_yaw if use_yaw is None else use_yaw
         self.log: list[UpdateRecord] = []
         self.n_updates = 0
+        self.consec_rejects = 0     # consecutive gated updates: divergence detector input
+        self.init_method = ""
+        self.recent_rejects = []
+        self.last_inflate = -1.0
+        self.n_inflations = 0
 
     # ------------------------------------------------------------------ initialisation
     def try_initialise(self, obs_list, t):
-        """Global initialisation from one marker pose measurement (range, bearing, yaw)."""
+        """Global initialisation (no prior), preferring two-tag triangulation.
+
+        (a) Two or more known tags in one frame: from their range/bearing in base_link and
+            known map positions, heading = angle(l2 - l1) - angle(p2 - p1), then position.
+            Uses only the precise range/bearing, not the noisy marker yaw.
+        (b) Otherwise one close, unambiguous tag (IPPE solutions clearly separated): its full
+            pose measurement (range, bearing, relative yaw) fixes the robot pose.
+        """
         e = self.cfg.ekf
-        cands = []
-        for o in obs_list:
-            # only unambiguous, close detections: no prior exists yet to resolve an IPPE flip
-            size = self.sizes[o.id] if o.id in self.map else 0
-            if (o.id not in self.map or o.z[0] > min(self.noise.yaw_max_range(size), 2.0)
-                    or o.ambiguity > 0.5):
+        known = [o for o in obs_list if o.id in self.map
+                 and o.z[0] <= self.noise.max_range(self.sizes[o.id])]
+        pts = {}
+        for o in known:                       # one per physical location (dock tags differ)
+            pts.setdefault(o.id, o)
+        known = sorted(pts.values(), key=lambda o: o.z[0])
+        # far tags have cm-level range errors: only triangulate from tags within 2.5 m
+        tri = [o for o in known if o.z[0] <= 2.5 * self.noise.k(self.sizes[o.id])]
+        if len(tri) >= 2:
+            known_all, known = known, tri
+            best = None
+            for i in range(len(known)):
+                for j in range(i + 1, len(known)):
+                    a, b = known[i], known[j]
+                    la, lb = self.map[a.id][:2], self.map[b.id][:2]
+                    base = np.linalg.norm(lb - la)
+                    if base < 0.08:
+                        continue
+                    pa = a.z[0] * np.array([np.cos(a.z[1]), np.sin(a.z[1])])
+                    pb = b.z[0] * np.array([np.cos(b.z[1]), np.sin(b.z[1])])
+                    th = wrap(np.arctan2(*(lb - la)[::-1]) - np.arctan2(*(pb - pa)[::-1]))
+                    p = la - rot2(th) @ pa
+                    # geometry quality: longer baseline relative to range is better
+                    q = base / max(a.z[0], b.z[0])
+                    if best is None or q > best[0]:
+                        best = (q, p, th, max(a.z[0], b.z[0]), base)
+            if best is not None and best[0] > 0.2:
+                _, p, th, rmax, base = best
+                self.s = np.array([p[0], p[1], th])
+                sd_th = 3 * 0.01 * rmax / base + 0.01
+                sd_p = 0.02 + rmax * sd_th
+                self.P = np.diag([sd_p, sd_p, sd_th]) ** 2
+                return self._mark_init(t, "two-tag triangulation")
+            known = known_all
+        for o in known:
+            size = self.sizes[o.id]
+            if o.z[0] > min(self.noise.yaw_max_range(size), 2.5) or o.ambiguity > 0.3:
                 continue
             lx, ly, lpsi = self.map[o.id]
             th = wrap(lpsi - o.z[2])
             p = np.array([lx, ly]) - rot2(th) @ (o.z[0] * np.array([np.cos(o.z[1]), np.sin(o.z[1])]))
-            cands.append([p[0], p[1], th, o.z[0]])
-        if not cands:
-            return False
-        best = min(cands, key=lambda c: c[3])          # closest marker = most accurate
-        self.s = np.array(best[:3])
-        sd = np.array(e.p0) * (1 + best[3])            # looser when initialised from far away
-        self.P = np.diag(sd ** 2)
+            self.s = np.array([p[0], p[1], th])
+            sd = np.array(e.p0) * (1 + o.z[0])     # looser when initialised from far away
+            self.P = np.diag(sd ** 2)
+            return self._mark_init(t, "single-tag pose")
+        return False
+
+    def _mark_init(self, t, how):
         self.initialised = True
         self.t_init = t
+        self.init_method = how
+        self.consec_rejects = 0
         return True
+
+    def reset(self):
+        """Forget the estimate (used when the filter is declared diverged)."""
+        self.initialised = False
+        self.consec_rejects = 0
 
     # ------------------------------------------------------------------ prediction
     def predict(self, dphi, dt):
@@ -163,7 +213,20 @@ class EKF:
             ok = nis < chi2.ppf(e.gate_prob, dof)
             self.log.append(UpdateRecord(t, o.id, nis, dof, ok, np.pad(nu, (0, 3 - dof)), o.z.copy()))
             if not ok:
+                # Adaptive inflation on CREDIBLE disagreement only: if two different tags
+                # are rejected within 0.5 s, the prior (not one tag) is wrong - e.g. wheel
+                # slip - so P is inflated and the next consistent measurement gets in. A
+                # single outlier (an IPPE flip of one far tag) does not inflate P. A real
+                # kidnap keeps failing and trips the divergence detector in mission.py.
+                self.consec_rejects += 1
+                self.recent_rejects = [(tt, i) for tt, i in self.recent_rejects if t - tt < 0.5]
+                self.recent_rejects.append((t, o.id))
+                if len({i for _, i in self.recent_rejects}) >= 2 and t > self.last_inflate:
+                    self.P += np.diag([0.02 ** 2, 0.02 ** 2, 0.05 ** 2])
+                    self.last_inflate = t
+                    self.n_inflations += 1
                 continue
+            self.consec_rejects = 0
             K = self.P @ H.T @ np.linalg.inv(S)
             self.s = self.s + K @ nu
             self.s[2] = wrap(self.s[2])

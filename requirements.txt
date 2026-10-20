@@ -1,1 +1,7 @@
+# Tested with Python 3.13, mujoco 3.3.7, numpy 2.5, scipy 1.18, matplotlib 3.11, opencv 5.0.
+# Any opencv >= 4.8 works (cv2.aruco.ArucoDetector, solvePnPGeneric with IPPE_SQUARE).
 mujoco==3.3.7
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+opencv-python>=4.8
