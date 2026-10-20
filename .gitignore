@@ -6,3 +6,5 @@ MUJOCO_LOG.TXT
 # generated at run time
 models/generated/
 results/runs/*.mp4
+results/batch/
+results/marker_noise_samples.npz

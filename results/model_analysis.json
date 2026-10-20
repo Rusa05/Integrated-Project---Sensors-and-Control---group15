@@ -1,0 +1,174 @@
+{
+  "actuator": [
+    {
+      "w_cmd": 1.0,
+      "gain": 1.007712428311278,
+      "tau_s": 0.008470676207859237
+    },
+    {
+      "w_cmd": 3.0,
+      "gain": 1.010566396202871,
+      "tau_s": 0.006672120088577095
+    },
+    {
+      "w_cmd": 5.0,
+      "gain": 1.0110788998589793,
+      "tau_s": 0.006305532963048276
+    }
+  ],
+  "tau_mean_s": 0.007149443086494869,
+  "open_loop_validation": {
+    "pos_err_10s_m": 0.05277998818837462,
+    "pos_err_max_m": 0.05277998818837462,
+    "heading_err_10s_rad": 0.10099648775284908
+  },
+  "controllability": {
+    "full_5state_moving_rank": 5,
+    "full_5state_standstill_rank": 4,
+    "unicycle_standstill_rank": 2,
+    "error_model": [
+      {
+        "v_r": 0.0,
+        "w_r": 0.0,
+        "rank": 2,
+        "sigma_min": 0.0,
+        "cond": 86602540378443.84
+      },
+      {
+        "v_r": 0.0,
+        "w_r": 0.3,
+        "rank": 3,
+        "sigma_min": 0.0010606104541825826,
+        "cond": 81.65348553460078
+      },
+      {
+        "v_r": 0.01,
+        "w_r": 0.0,
+        "rank": 3,
+        "sigma_min": 3.535532911564583e-05,
+        "cond": 2449.491120621041
+      },
+      {
+        "v_r": 0.01,
+        "w_r": 0.3,
+        "rank": 3,
+        "sigma_min": 0.0010611992201724075,
+        "cond": 81.6082137752121
+      },
+      {
+        "v_r": 0.05,
+        "w_r": 0.0,
+        "rank": 3,
+        "sigma_min": 0.00017677545234342555,
+        "cond": 489.9048377752499
+      },
+      {
+        "v_r": 0.05,
+        "w_r": 0.3,
+        "rank": 3,
+        "sigma_min": 0.0010752326948977292,
+        "cond": 80.54380491308203
+      },
+      {
+        "v_r": 0.1,
+        "w_r": 0.0,
+        "rank": 3,
+        "sigma_min": 0.00035354344715793346,
+        "cond": 244.96275288775288
+      },
+      {
+        "v_r": 0.1,
+        "w_r": 0.3,
+        "rank": 3,
+        "sigma_min": 0.0011179501399612663,
+        "cond": 77.4681695791483
+      },
+      {
+        "v_r": 0.15,
+        "w_r": 0.0,
+        "rank": 3,
+        "sigma_min": 0.0005302965278662545,
+        "cond": 163.3199845302144
+      },
+      {
+        "v_r": 0.15,
+        "w_r": 0.3,
+        "rank": 3,
+        "sigma_min": 0.0011857235035032932,
+        "cond": 73.04315941487287
+      }
+    ]
+  },
+  "observability": {
+    "stationary: range only, 1 tag": {
+      "rank": 1,
+      "eig_min": 0.0,
+      "eig_max": 99.99999999999977
+    },
+    "stationary: bearing only, 1 tag": {
+      "rank": 1,
+      "eig_min": 3.976232430060355e-16,
+      "eig_max": 105.88235294117644
+    },
+    "stationary: range+bearing, 1 tag": {
+      "rank": 2,
+      "eig_min": 6.57598975273288e-14,
+      "eig_max": 105.88235294117644
+    },
+    "stationary: range+bearing+yaw, 1 tag": {
+      "rank": 3,
+      "eig_min": 2.8979332253238796,
+      "eig_max": 202.98441971585265
+    },
+    "stationary: range+bearing, 2 tags": {
+      "rank": 3,
+      "eig_min": 71.49003613691865,
+      "eig_max": 224.78600958077757
+    },
+    "stationary: range+bearing, 2 dock tags 10 cm apart": {
+      "rank": 3,
+      "eig_min": 0.026236876543248265,
+      "eig_max": 211.76319671121058
+    },
+    "stationary: odometry only": {
+      "rank": 0,
+      "eig_min": 0.0,
+      "eig_max": 0.0
+    },
+    "driving: range only, 1 tag": {
+      "rank": 2,
+      "eig_min": -5.378203036921038e-16,
+      "eig_max": 100.39743429491915
+    },
+    "driving: bearing only, 1 tag": {
+      "rank": 2,
+      "eig_min": -5.0833656029170195e-15,
+      "eig_max": 122.81878319851823
+    },
+    "driving: range+bearing, 1 tag": {
+      "rank": 2,
+      "eig_min": 2.7651492207070305e-14,
+      "eig_max": 125.21047115487539
+    },
+    "driving: range+bearing+yaw, 1 tag": {
+      "rank": 3,
+      "eig_min": 3.111043418435491,
+      "eig_max": 220.89707442132334
+    },
+    "driving: range+bearing, 2 tags": {
+      "rank": 3,
+      "eig_min": 69.6917846584915,
+      "eig_max": 256.4671706866239
+    },
+    "driving: range+bearing, 2 dock tags 10 cm apart": {
+      "rank": 3,
+      "eig_min": 0.02643066823885165,
+      "eig_max": 250.4176124337173
+    },
+    "driving: odometry only": {
+      "rank": 0,
+      "eig_min": 0.0,
+      "eig_max": 0.0
+    }
+  }
+}
