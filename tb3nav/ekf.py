@@ -138,6 +138,10 @@ class EKF:
         """Forget the estimate (used when the filter is declared diverged)."""
         self.initialised = False
         self.consec_rejects = 0
+        # No estimate exists until re-initialisation: zero state marks these samples as
+        # "no estimate" in the log (plots.init_mask), so they are not scored as estimates.
+        self.s = np.zeros(3)
+        self.P = np.eye(3)
 
     # ------------------------------------------------------------------ prediction
     def predict(self, dphi, dt):

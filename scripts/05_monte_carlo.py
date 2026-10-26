@@ -143,7 +143,7 @@ def plot_mc(by):
             z = np.load(f)
             m = ~np.all(z["est"] == 0, axis=1)
             e = np.hypot(*(z["est"][m, :2] - z["true"][m, :2]).T)
-            sd = np.sqrt(np.trace(z["P"][m, :2, :2], axis1=1, axis2=2))
+            sd = np.sqrt(np.trace(z["P"][m, :2, :2], axis1=1, axis2=2) / 2)   # per-axis std
             all_e.append(e); all_s.append(sd)
         if all_e:
             e, sd = np.concatenate(all_e), np.concatenate(all_s)
@@ -153,7 +153,7 @@ def plot_mc(by):
     from scipy.stats import chi
     xx = np.linspace(0, 4, 100)
     ax[0].plot(xx, chi.pdf(xx, 2), "k--", lw=1.5, label="ideal (chi, 2 dof)")
-    ax[0].set_xlabel("position error / predicted std"); ax[0].legend(fontsize=7)
+    ax[0].set_xlabel("position error / predicted per-axis std  sqrt(tr P / 2)"); ax[0].legend(fontsize=7)
     ax[0].set_title("Estimator consistency (position), all trials")
     lim = ax[1].get_xlim()[1]
     ax[1].plot([0, lim], [0, lim], "k--", lw=1); ax[1].plot([0, lim], [0, 3 * lim], "r:", lw=1)

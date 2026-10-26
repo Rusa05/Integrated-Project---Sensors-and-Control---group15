@@ -86,13 +86,13 @@ Derivation and analysis: `tb3nav/model.py`, `scripts/01_model_analysis.py`, resu
 
 $$\dot x = \tfrac{r}{2}(\omega_L+\omega_R)\cos\theta,\quad \dot y = \tfrac{r}{2}(\omega_L+\omega_R)\sin\theta,\quad \dot\theta = \tfrac{r}{b}(\omega_R-\omega_L),\quad \dot\omega_i = (\omega_{i,cmd}-\omega_i)/\tau$$
 
-* **τ identified at {{TAU_MS}} ms** from wheel step responses (static gain ≈ 1.01). Because τ is far
+* **τ identified at 7.1 ms** from wheel step responses (static gain ≈ 1.01). Because τ is far
   below the 50 ms control period, the estimator and controller use the reduced unicycle model
   `s = [x, y, θ]`, `u = [v, ω]`.
 * **Platform-specific kinematics** (from calibration, §4): speed-dependent effective radius
   `r_eff(ω̄)`, speed-dependent turn gain `g(ω̄)`, and the robot turns about an ICR **27.7 mm behind
   the axle**, so `base_link` moves sideways by `−x_ICR·Δθ` on the spot. Open-loop validation
-  against MuJoCo: {{VALID}}.
+  against MuJoCo: 5.3 cm position and 5.8° heading drift after 10 s of open-loop driving on encoders alone.
 * **Assumptions stated:** planar motion; rigid body; wheel dynamics much faster than the outer loop
   (checked); the slip is captured in the calibrated tables plus process noise; the actuator
   gain `kv` was raised from 0.1 to 1.0 to emulate a Dynamixel in velocity mode (the menagerie
@@ -142,8 +142,8 @@ relative yaw of the tag normal in **B**.
 | wheel radius | 33.0 mm | 28.6 mm at cruise, 31.6–32.5 mm slow or reversing (table of 13 speeds) |
 | turn gain r/b | 0.1146 | 0.0834 on the spot → 0.094 rolling (table) |
 | ICR offset | 0 | −27.7 mm (IQR ±0.2 mm over 23 turns) |
-| 1 m square on odometry, end error | 109–125 cm | {{UMB}} |
-| odometry noise | — | k_s = {{KS}} m^½ per wheel; rotation k_θ = {{KROT}} rad^½ |
+| 1 m square on odometry, end error | 109–125 cm | 9.4–10.3 cm |
+| odometry noise | — | k_s = 0.024 m^½ per wheel; rotation k_θ = 0.029 rad^½ |
 
 The reference displacement in this offline calibration is the simulator's true pose, used as a tape
 measure or overhead tracker would be on hardware.
@@ -193,8 +193,8 @@ gives a safety stop at 0.20 m.
 
 | Parameter | Value | Why |
 |---|---|---|
-| k_s | {{KS}} m^½ | 1.2 × calibrated along-track odometry noise |
-| k_θ, k_xy | {{KROT}} rad^½, {{KXY}} m/rad^½ | 1.2 × calibrated in-place-turn residuals |
+| k_s | 0.024 m^½ | 1.2 × calibrated along-track odometry noise |
+| k_θ, k_xy | 0.029 rad^½, 0.0065 m/rad^½ | 1.2 × calibrated in-place-turn residuals |
 | R(range) | (0.7 mm + 2.2 % r)², floor 1 cm | calibrated (§4.2) |
 | R(bearing) | floor (0.005 rad)² | calibrated σ < 0.001; floor covers motion and timing |
 | R(yaw) | view-dependent, floor (0.03 rad)² | calibrated |

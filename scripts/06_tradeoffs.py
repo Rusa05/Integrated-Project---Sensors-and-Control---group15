@@ -152,7 +152,7 @@ def report():
         for k, ee, uu in zip(ks, e, u):
             ax[0].annotate(f"R×{k}", (uu[0], ee[0]), textcoords="offset points", xytext=(5, 5), fontsize=8)
         ax[0].set_xlabel("control chatter Σ|Δω| [rad/s]"); ax[0].set_ylabel("cross-track RMSE [cm]")
-        ax[0].set_title("Tracking error vs control effort (Pareto front)"); ax[0].grid(alpha=0.3)
+        ax[0].set_title("Tracking error vs control effort (error flat: set by estimation, not control)"); ax[0].grid(alpha=0.3)
         ax[1].semilogx(ks, [mean(C[k], "effort_w2")[0] for k in ks], "o-")
         ax[1].set_xlabel("LQR R scale"); ax[1].set_ylabel("∫ω² dt"); ax[1].grid(alpha=0.3)
         ax[1].set_title("Yaw-rate effort")
