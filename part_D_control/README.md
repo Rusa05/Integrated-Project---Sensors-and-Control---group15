@@ -63,49 +63,46 @@ Goal: the pre-dock pose (1.30, −1.00), 0.6 m in front of the marker, facing it
 | Metric | Mean | Worst |
 |---|---|---|
 | Reached pre-dock without collision | **9 / 9** | n/a |
-| Final position error (truth) | **0.65 cm** | 0.8 cm |
-| Final heading error (truth) | **0.6°** | 0.8° |
-| Cross-track error, path vs **EKF** (what the controller can see) | **1.6 cm RMS** | 18 cm peak |
-| Cross-track error, path vs **truth** | 4.7 cm RMS | 19 cm peak |
-| EKF position error | 5.8 cm RMS | n/a |
-| Time | 24.3 s | 27.7 s |
+| Final position error (truth) | **0.86 cm** | 1.3 cm |
+| Final heading error (truth) | **0.9°** | 1.3° |
+| Cross-track error, path vs **EKF** (what the controller can see) | **0.8 cm RMS** | 10 cm peak |
+| Cross-track error, path vs **truth** | **2.2 cm RMS** | 11 cm peak |
+| EKF position error | **3.0 cm RMS** | n/a |
+| Time | 24.1 s | 27.2 s |
 
 ![Navigation, scenario B](results/nav_B_box_in_way.png)
 
 **The gap between the two tracking rows is estimation error, not control error.** The plots show this directly:
 
-- **Before the marker is in range:** the robot starts 2.9–3.6 m from it, and the EKF only fuses it within 2 m. The initial heading uncertainty (σ = 3°) grows into a sideways error of up to about 9 cm. The controller can't see this, so it keeps the *estimate* on the path.
+- **Before a tag is close enough to trust:** the initial heading uncertainty (σ = 3°) grows into a sideways error of a few cm. The controller can't see this, so it keeps the *estimate* on the path.
 - **When the marker comes into range:** the EKF corrects in one step, the controller sees the true error, and it removes it in about 4 s.
 
 The controller is accurate; the limit is how well the robot knows where it is before it can see the marker.
 
-**Trade-off of the 2 m marker range limit** (added after the robustness trials in Part E):
-
-- With the first EKF, which used readings out to about 2.7 m, the same runs gave 0.9 cm control error, 2.9 cm true cross-track error and 4.1 cm EKF error.
-- The limit costs that mid-route accuracy, but it removed docking failures where far updates made the estimate worse. Docking accuracy is unchanged.
+**Effect of the wall tags.** With only the dock marker, the robot drove the first 1–2 m on odometry, and the same runs gave 4.7 cm true cross-track error and 5.8 cm EKF error. Wall tags in range almost everywhere **halved both** (2.2 cm and 3.0 cm). The remaining error is mostly the first seconds, before a tag is close enough to fuse.
 
 ### LQR weights: control effort vs tracking error (`lqr_tradeoff.png`)
 
 | R scale | Feedback turn effort (RMS) | Cross-track error vs truth (RMS) |
 |---|---|---|
-| ×0.1 (aggressive) | 0.144 rad/s | 5.03 cm |
-| **×1 (chosen)** | **0.096 rad/s** | **5.13 cm** |
-| ×10 (gentle) | 0.062 rad/s | 5.23 cm |
+| ×0.1 (aggressive) | 0.104 rad/s | 0.85 cm |
+| **×1 (chosen)** | **0.069 rad/s** | **0.97 cm** |
+| ×10 (gentle) | 0.040 rad/s | 1.16 cm |
 
-- 10× more aggressive: +50 % effort for −2 % error.
-- 10× gentler: −35 % effort for +2 % error.
+- 10× more aggressive: +51 % effort for −12 % error.
+- 10× gentler: −42 % effort for +20 % error.
 
-The curve is flat because most of the remaining error is estimation error, which no control gain can remove. The chosen weights sit at the knee.
+With the single marker this curve was flat (±2 %), because estimation error swamped everything. Now that the wall tags have halved the estimation error, control gain visibly matters, and a genuine effort-against-error trade-off appears. The chosen weights sit in the middle of it.
 
 ## D2. Docking controller
 
 States in [`src/mission.py`](../src/mission.py): ALIGN → TRACK → **FINAL_ALIGN → DOCK** → DOCKED.
 
 1. **FINAL_ALIGN:** at the pre-dock pose, turn on the spot to face the marker (within 0.5°). The marker is well in view, so the EKF gets good pose updates.
-2. **DOCK:** a 0.48 m reference to the dock goal (1.78, −1.0) at 0.06 m/s, tracked by **the same LQR**. The reference is a cubic Hermite curve that starts along the robot's heading and **ends along the dock axis**, so the robot finishes square even if it reached the pre-dock point a few cm off-axis.
-3. **Blind finish:** the marker leaves the camera view when the axle is about 0.30 m from it. The last ~0.17 m runs on odometry, which drifts under 1 mm over that distance.
+2. **DOCK:** a 0.32 m reference to the dock goal (1.62, −1.0) at 0.06 m/s, tracked by **the same LQR**. The reference is a cubic Hermite curve that starts along the robot's heading and **ends along the dock axis**, so the robot finishes square even if it reached the pre-dock point a few cm off-axis.
+3. **Tags in view the whole way:** the two 3 cm dock tags at camera height stay in view down to the docked pose (camera 0.20 m from the backplate), so the camera corrects the estimate all the way in. With the single marker, the last ~0.17 m was blind.
 4. **Stop** when the reference has ended and the estimate is within 1 cm of the goal.
-5. **LiDAR backstop:** at the dock the LiDAR should read 0.165 m to the backplate. Below 0.13 m the robot stops at once. It's an independent check that doesn't rely on the estimate.
+5. **LiDAR backstop:** at the dock the LiDAR should read 0.325 m to the backplate. Below 0.27 m the robot stops at once. It's an independent check that doesn't rely on the estimate.
 
 **Why reuse the LQR for docking:**
 
@@ -113,7 +110,7 @@ States in [`src/mission.py`](../src/mission.py): ALIGN → TRACK → **FINAL_ALI
 - A moving reference keeps v_r ≠ 0, so the error stays controllable (rank 3) all the way in.
 - A pose-stabilising controller would face the rank-2 problem at standstill.
 
-**Results** (full mission, [Part E](../part_E_integration_and_robustness/)): 9 / 9 docked, **0.58 cm and 0.15°** from the goal; 80 / 80 under disturbances.
+**Results** (full mission, [Part E](../part_E_integration_and_robustness/)): 9 / 9 docked, **0.63 cm and 0.5°** from the goal; 70 / 70 under disturbances with all safeguards on.
 
 ## Problems found and fixed during development
 

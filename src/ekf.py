@@ -1,11 +1,17 @@
 """Extended Kalman filter for the robot pose [x, y, theta] (Part C).
 
 Predict  every control tick (50 Hz) from wheel-encoder increments.
-Update   whenever the camera sees the charging-station marker (up to 10 Hz), with
-         z = [range, bearing, marker yaw relative to the robot] (a relative pose measurement).
+Update   for every known ArUco tag the camera sees (frames at up to 5 Hz), with
+         z = [range, bearing, tag yaw relative to the robot] (a relative pose measurement).
 
-Why a pose measurement: with range + bearing to a single marker the pose is not observable
-(rank 2, see part_A_modelling); the marker's yaw supplies the missing direction.
+Why a pose measurement: with range + bearing to a single tag the pose is not observable
+(rank 2, see part_A_modelling); the tag's yaw supplies the missing direction. With two or more
+tags in view, range + bearing alone is enough (rank 3), which the measurement ablation in
+part_C_estimation tests.
+
+Tags of different sizes share one noise model by pinhole similarity: a tag k times bigger looks,
+at k times the range, exactly like the reference 10 cm tag, so sigma_s(r) = k * sigma_ref(r / k)
+and its usable range is k times longer (15 cm wall tags: 3 m; 3 cm dock tags: 0.6 m).
 
 Noise values and where they come from
 -------------------------------------
@@ -13,7 +19,7 @@ Process noise Q is built from the wheels, not tuned on x/y/theta directly. Each 
 angle increment over one tick has variance
     sigma_phi^2 = (SLIP_FRAC * |dphi|)^2 + SIGMA_PHI_MIN^2
   * SLIP_FRAC    unmodelled slip/scrub as a fraction of wheel travel: the error that really
-                 accumulates. Phase 2 measured 0.35 % position drift over 7.3 m.
+                 accumulates. Part A measured 0.35 % position drift over 7.3 m.
   * SIGMA_PHI_MIN a tiny floor so Q is never singular at standstill.
 Encoder quantisation (4096 ticks/rev) and per-reading jitter are deliberately NOT in Q: they are
 errors on the *absolute* wheel angle, so successive increments cancel (the sum telescopes) and
@@ -28,7 +34,7 @@ depends on the viewpoint and repeats in consecutive frames (~0.5 cm in range at 
 if it were independent made the filter over-confident (NEES up to ~18). Two measures, chosen with
 the NEES/NIS study in part_C_estimation:
   * floors on R sized to that systematic error, and
-  * at most 5 updates per second (MIN_UPDATE_DT), so near-identical frames are not
+  * at most 5 camera frames per second (MIN_UPDATE_DT), so near-identical frames are not
     counted as independent evidence.
 """
 from collections import deque
@@ -42,23 +48,47 @@ from src import config, model as rm
 SLIP_FRAC = 0.01            # 1 % of wheel travel, 1 sigma
 SIGMA_PHI_MIN = 1e-5        # rad per tick
 
-# --- measurement noise: sigma(r) = a * r^p (phase 2 fits) with floors -----------------
-RANGE_BIAS_K = 0.0067                      # m per m^2: corrected range = r - K r^2
+# --- measurement noise: sigma(r) = a * r^p (Part B fits for the 10 cm tag) with floors -----
+REF_SIZE = 0.10                            # m, the tag the noise model was measured on
+RANGE_BIAS_K = 0.0067                      # m per m^2: corrected range = r - K r^2 (10 cm tag)
 SIG_RANGE = (0.00107, 3.33, 0.02)          # a [m], p, floor [m]
 SIG_BEARING = (0.000117, 1.08, math.radians(0.5))
 SIG_YAW = (0.0110, 2.68, math.radians(2.0))
+# With several tags in view, each tag's viewpoint-dependent error (a few mm and tenths of a degree,
+# repeated frame after frame) leaves one direction poorly constrained: a sideways offset paired with
+# a heading error, which the clustered dock tags see as nearly the same bearings. Fusing every tag
+# at the noise level above made the filter about 3x over-confident (mean NEES 6.4 over 6 random
+# missions). Scaling R by 3 gave mean NEES 3.0 (ideal) with unchanged accuracy (1.47 vs 1.44 cm), so
+# R is scaled by R_INFLATION; r_scale (the tuning study's x0.1 ... x10) multiplies on top of it.
+R_INFLATION = 3.0
 MIN_UPDATE_DT = 0.2         # s; fuse at most 5 camera frames per second
+# A tag's error depends on the viewpoint, so frames from (almost) the same viewpoint repeat the same
+# error and carry no new information. With several tags in view, fusing them every 0.2 s while the
+# robot stood still or turned on the spot made the filter over-confident in heading (NEES 14-24 in
+# FINAL_ALIGN). So a new frame is fused only once the robot has moved MIN_MOVE or turned MIN_TURN
+# since the last fused frame, or MAX_WAIT has passed.
+MIN_MOVE = 0.02             # m
+MIN_TURN = math.radians(2.0)
+MAX_WAIT = 2.0              # s
 HISTORY = 1.0               # s of predict steps kept for latency compensation
-YAW_MAX_RANGE = 2.0         # m; beyond this the marker yaw is too noisy/ambiguous to use
-# Marker readings further than this are not fused at all. Without the yaw, range+bearing to one
-# marker cannot fix the heading (rank 2), and while the heading is uncertain a far update slides
-# the estimate around the marker the wrong way (phase 6: three accepted updates at 2.6-2.8 m took
-# the error from 5 to 19 cm). So beyond the yaw range the camera is ignored.
-MAX_FUSE_RANGE = YAW_MAX_RANGE
+# Readings further than this (for the 10 cm tag; scaled by size for others) are not fused. Beyond
+# it the yaw is too noisy to use, and range+bearing to one tag cannot fix the heading (rank 2):
+# while the heading is uncertain, a far update slides the estimate around the tag the wrong way
+# (Part E: three accepted updates at 2.6-2.8 m took the error from 5 to 19 cm).
+MAX_FUSE_RANGE = 2.0
+# The tag yaw degrades faster than range and bearing: at 2x the reference range it is 12-16 deg RMS
+# (IPPE flips plus noise) against 0.8-2 deg at up to 1.75x (measured on 3, 10 and 15 cm tags,
+# part_B_sensing/sensor_noise.py). Beyond 1.75x only range and bearing are fused.
+YAW_MAX_RANGE = 1.75
+# Small tags give a biased yaw: the 3 cm dock tags read +-0.4 deg docked and up to +-5 deg at 0.6 m,
+# with only 0.1-0.3 deg scatter (a consistent, viewpoint-dependent error the filter cannot average
+# out). Their range and bearing are excellent, and two of them 10 cm apart already make the pose
+# observable (rank 3), so tags smaller than this only contribute range and bearing.
+YAW_MIN_SIZE = 0.05         # m
 
 # Gate lock-out recovery: if many readings in a row fail the gate, the filter is more likely wrong
 # than the camera. After REJECT_LIMIT consecutive rejections, each further rejection inflates P.
-REJECT_LIMIT = 5                                            # 1 s at 5 Hz
+REJECT_LIMIT = 5
 P_INFLATE = np.diag([0.03 ** 2, 0.03 ** 2, math.radians(2) ** 2])
 
 # --- innovation gates (chi-square, 99 %) ------------------------------------------------
@@ -66,9 +96,10 @@ GATE_3DOF = 11.345
 GATE_2DOF = 9.210
 
 
-def _sigma(params, r):
+def _sigma(params, r, k):
+    """Noise of a tag k times the reference size at range r (pinhole similarity)."""
     a, p, floor = params
-    return max(a * r ** p, floor)
+    return max(k * a * (r / k) ** p, floor)
 
 
 @dataclass
@@ -77,21 +108,28 @@ class UpdateResult:
     nis: float                # NIS of the innovation that was tested last
     dof: int
     innovation: np.ndarray = field(repr=False)
+    tag: int = None
+    flipped: bool = False     # True if the other IPPE solution was the consistent one
 
 
 class EKF:
+    """mode: 'pose' (range, bearing and tag yaw; default), 'range_bearing' (never use the yaw)
+    or 'odometry' (ignore the camera): the last two exist for the measurement ablation."""
+
     def __init__(self, x0, P0, slip_frac=SLIP_FRAC, r_scale=1.0, min_update_dt=MIN_UPDATE_DT,
-                 marker_xy=config.MARKER_XY, marker_yaw=config.MARKER_YAW):
+                 tags=config.TAGS, mode='pose'):
         self.x = np.array(x0, dtype=float)
         self.P = np.array(P0, dtype=float)
         self.slip_frac = slip_frac
         self.r_scale = r_scale          # multiplies R (used for the tuning study)
         self.min_update_dt = min_update_dt   # s; skip frames closer together than this
         self._last_update_t = -math.inf
-        self.m = np.array(marker_xy, dtype=float)
-        self.m_yaw = marker_yaw
+        self.tags = tags
+        self.mode = mode
         self.rejections = 0             # consecutive gate rejections (lock-out detection)
         self.inflations = 0
+        self.flips = 0                  # IPPE ambiguities resolved in favour of the other solution
+        self._moved = self._turned = math.inf    # motion since the last fused frame (from odometry)
         # (time after the step, wheel increments, state and covariance before the step)
         self.history = deque(maxlen=int(round(HISTORY / rm.DT)))
 
@@ -108,6 +146,8 @@ class EKF:
         r, b = rm.WHEEL_RADIUS, rm.WHEEL_SEPARATION
         ds = r * (dl + dr) / 2
         dth = r * (dr - dl) / b
+        self._moved += abs(ds)
+        self._turned += abs(dth)
         th_m = self.x[2] + dth / 2
         c, s = math.cos(th_m), math.sin(th_m)
 
@@ -123,43 +163,51 @@ class EKF:
         return Q
 
     # ---------------------------------------------------------------------------------
-    def measurement_noise(self, rng):
-        return self.r_scale * np.diag([_sigma(SIG_RANGE, rng) ** 2,
-                                       _sigma(SIG_BEARING, rng) ** 2,
-                                       _sigma(SIG_YAW, rng) ** 2])
+    def measurement_noise(self, rng, size=REF_SIZE):
+        k = size / REF_SIZE
+        return R_INFLATION * self.r_scale * np.diag([_sigma(SIG_RANGE, rng, k) ** 2,
+                                       _sigma(SIG_BEARING, rng, k) ** 2,
+                                       _sigma(SIG_YAW, rng, k) ** 2])
 
     @staticmethod
-    def corrected(meas):
-        """[range, bearing, rel_yaw] from a vision.MarkerMeasurement, with the range bias removed."""
-        return np.array([meas.range - RANGE_BIAS_K * meas.range ** 2, meas.bearing, meas.rel_yaw])
+    def corrected(meas, solution=None):
+        """[range, bearing, rel_yaw] with the range bias removed. solution = meas.alt for the other
+        IPPE solution; the bias scales as K r^2 / k for a tag k times the reference size."""
+        rng, brg, yaw = solution if solution is not None else (meas.range, meas.bearing, meas.rel_yaw)
+        k = meas.size / REF_SIZE
+        return np.array([rng - RANGE_BIAS_K * rng ** 2 / k, brg, yaw])
 
-    def _try(self, z, h, H, R, gate):
+    def _innovation(self, z, h, H, R):
         nu = z - h
         nu[1:] = [rm.wrap(a) for a in nu[1:]]
         S = H @ self.P @ H.T + R
-        nis = float(nu @ np.linalg.solve(S, nu))
-        if nis > gate:
-            return False, nis, nu
+        return nu, S, float(nu @ np.linalg.solve(S, nu))
+
+    def _apply(self, nu, S, H, R):
         K = self.P @ H.T @ np.linalg.inv(S)
         self.x = self.x + K @ nu
         self.x[2] = rm.wrap(self.x[2])
         I_KH = np.eye(3) - K @ H
         self.P = I_KH @ self.P @ I_KH.T + K @ R @ K.T      # Joseph form: stays symmetric PSD
-        return True, nis, nu
 
     def update(self, meas, t=None, t_meas=None):
-        """Fuse one marker measurement. Tries the full pose; falls back to range+bearing if the
-        yaw is out of range or fails the gate (e.g. an IPPE pose flip).
+        """Fuse one tag measurement. Tries the full pose; falls back to range+bearing if the yaw
+        is out of range or fails the gate.
 
         t       current time; t_meas  time the camera frame was captured. If the frame is older
         than the current state (camera latency), the filter rewinds to t_meas, applies the update
         there and replays the stored wheel increments up to now, so a late measurement is compared
         with where the robot *was*, not where it is now.
-        Returns None if the frame was skipped by min_update_dt or is older than the history."""
+        Several tags from the same frame (same t_meas) are all fused; frames closer together than
+        min_update_dt are skipped. Returns None if skipped, out of range or older than the history."""
         stamp = t_meas if t_meas is not None else t
-        if stamp is not None:
-            if stamp - self._last_update_t < self.min_update_dt - 1e-9:
+        new_frame = stamp is None or stamp - self._last_update_t > 1e-9
+        if new_frame and stamp is not None:
+            dt = stamp - self._last_update_t
+            if dt < self.min_update_dt - 1e-9:
                 return None
+            if self._moved < MIN_MOVE and self._turned < MIN_TURN and dt < MAX_WAIT:
+                return None                                  # same viewpoint: no new information
         replay = []
         if t_meas is not None and self.history and t_meas < self.history[-1][0] - 1e-9:
             if t_meas < self.history[0][0] - rm.DT - 1e-9:
@@ -169,18 +217,23 @@ class EKF:
             for _ in range(len(replay)):
                 self.history.pop()
             self.x, self.P = replay[0][2].copy(), replay[0][3].copy()
-        if stamp is not None:
-            self._last_update_t = stamp
         result = self._update_now(meas)
+        if stamp is not None and result is not None:
+            if new_frame:
+                self._moved = self._turned = 0.0
+            self._last_update_t = stamp
         for t_k, dphi_k, _, _ in replay:                      # roll forward to the present
             self.history.append((t_k, dphi_k, self.x.copy(), self.P.copy()))
             self._predict(dphi_k)
         return result
 
     def _update_now(self, meas):
-        if meas.range > MAX_FUSE_RANGE:
+        if self.mode == 'odometry' or meas.id not in self.tags:
             return None
-        result = self._fuse(meas)
+        k = meas.size / REF_SIZE
+        if meas.range > k * MAX_FUSE_RANGE:
+            return None
+        result = self._fuse(meas, k)
         if result.used == 'rejected':
             self.rejections += 1
             if self.rejections >= REJECT_LIMIT:
@@ -190,25 +243,37 @@ class EKF:
             self.rejections = 0
         return result
 
-    def _fuse(self, meas):
-        z = self.corrected(meas)
-        R = self.measurement_noise(z[0])
-        if z[0] <= YAW_MAX_RANGE:
-            h = rm.h_range_bearing_yaw(self.x, self.m, self.m_yaw)
-            H = rm.H_range_bearing_yaw(self.x, self.m)
-            ok, nis, nu = self._try(z, h, H, R, GATE_3DOF)
-            if ok:
-                return UpdateResult('pose', nis, 3, nu)
-        h = rm.h_range_bearing(self.x, self.m)
-        H = rm.H_range_bearing(self.x, self.m)
-        ok, nis, nu = self._try(z[:2], h, H, R[:2, :2], GATE_2DOF)
-        return UpdateResult('range_bearing' if ok else 'rejected', nis, 2, nu)
+    def _fuse(self, meas, k):
+        tag = self.tags[meas.id]
+        m = (tag.x, tag.y)
+        R = self.measurement_noise(meas.range, meas.size)
+        if self.mode == 'pose' and meas.size >= YAW_MIN_SIZE and meas.range <= k * YAW_MAX_RANGE:
+            h = rm.h_range_bearing_yaw(self.x, m, tag.yaw)
+            H = rm.H_range_bearing_yaw(self.x, m)
+            # IPPE ambiguity: keep whichever of the two solutions agrees with the prior
+            cands = [(self.corrected(meas), False)]
+            if meas.alt is not None:
+                cands.append((self.corrected(meas, meas.alt), True))
+            (nu, S, nis), flip = min(((self._innovation(z, h, H, R), f) for z, f in cands),
+                                     key=lambda c: c[0][2])
+            if nis <= GATE_3DOF:
+                self._apply(nu, S, H, R)
+                self.flips += flip
+                return UpdateResult('pose', nis, 3, nu, meas.id, flip)
+        z = self.corrected(meas)[:2]
+        h = rm.h_range_bearing(self.x, m)
+        H = rm.H_range_bearing(self.x, m)
+        nu, S, nis = self._innovation(z, h, H, R[:2, :2])
+        if nis > GATE_2DOF:
+            return UpdateResult('rejected', nis, 2, nu, meas.id)
+        self._apply(nu, S, H, R[:2, :2])
+        return UpdateResult('range_bearing', nis, 2, nu, meas.id)
 
     # ---------------------------------------------------------------------------------
     @staticmethod
-    def pose_from_marker(meas, marker_xy=config.MARKER_XY, marker_yaw=config.MARKER_YAW):
+    def pose_from_marker(meas, tags=config.TAGS):
         """Invert one measurement into a robot pose (for initialising without a prior)."""
+        tag = tags[meas.id]
         rng, brg, rel_yaw = EKF.corrected(meas)
-        th = rm.wrap(marker_yaw - rel_yaw)
-        return np.array([marker_xy[0] - rng * math.cos(th + brg),
-                         marker_xy[1] - rng * math.sin(th + brg), th])
+        th = rm.wrap(tag.yaw - rel_yaw)
+        return np.array([tag.x - rng * math.cos(th + brg), tag.y - rng * math.sin(th + brg), th])

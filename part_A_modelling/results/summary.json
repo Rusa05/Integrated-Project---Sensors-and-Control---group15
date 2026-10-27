@@ -30,6 +30,10 @@
       "range+bearing+marker yaw, stationary": {
         "rank": 3,
         "condition": 2.7809984764262397
+      },
+      "two tags 10 cm apart, range+bearing, stationary": {
+        "rank": 3,
+        "condition": 40.4123350801039
       }
     }
   },

@@ -4,8 +4,8 @@ Conditions (each trial also has a random start pose and random obstacle position
     nominal     no disturbance
     push        a sideways shove part-way through (8 N for 0.2 s, random direction)
     slip        tyre friction cut from 1.0 to 0.1 (slippery floor)
-    occlusion   marker hidden for a random 10 s window (something in front of it)
-    latency     every marker measurement arrives 0.2 s after its camera frame
+    occlusion   camera sees no tags for a random 10 s window (blocked or blinded)
+    latency     every tag measurement arrives 0.2 s after its camera frame
     latency_nocomp  same, with the EKF's latency compensation switched off (for comparison)
     noise_x2    all sensor noise doubled
     combined    push + slip + occlusion + 0.1 s latency
@@ -68,10 +68,12 @@ def sample_layout(rng):
 
 
 def run_trial(args):
-    """args = (condition, trial index[, debug log[, video path]])."""
+    """args = (condition, trial index[, debug log[, video path[, EKF options]]]).
+    EKF options (dict) are passed to src.ekf.EKF, e.g. {'slip_frac': 0.03} or {'mode': 'range_bearing'}."""
     cond, idx = args[:2]
     debug = len(args) > 2 and args[2]
     record = args[3] if len(args) > 3 else None
+    ekf_options = args[4] if len(args) > 4 else None
     dbg = []
     sys.path.insert(0, str(ROOT))
     import mujoco
@@ -118,10 +120,12 @@ def run_trial(args):
     gt.set_pose(model, data, *layout['start'])
     robot = SimRobot(model, data, noise=noise, seed=idx,
                      occluded=(lambda t: occl[0] <= t < occl[1]) if occl else None, latency=latency)
-    mission = Mission(np.array(layout['start']) + rng.multivariate_normal(np.zeros(3), P0), P0)
+    mission = Mission(np.array(layout['start']) + rng.multivariate_normal(np.zeros(3), P0), P0,
+                      ekf_options=ekf_options)
     base = model.body('base').id
     collisions = {}
-    max_err = max_nees = 0.0
+    max_err = max_nees = sum_nees = sum_sq_err = 0.0
+    n_ticks, push_recovered = 0, None
     traj = []
     t0 = data.time
     error = None
@@ -140,8 +144,9 @@ def run_trial(args):
     try:
         while data.time - t0 < TIMEOUT and not mission.finished:
             dphi, meas, scan = robot.sense()
-            if cond == 'latency_nocomp' and meas is not None:
-                meas.t = None                                   # EKF treats the frame as current
+            if cond == 'latency_nocomp':
+                for m in meas:
+                    m.t = None                                  # EKF treats the frame as current
             v, w = mission.step(robot.time, dphi, meas, scan)
             data.xfrc_applied[base, :3] = push['f'] if push and push['t'] <= data.time < push['t'] + push['dur'] else 0.0
             robot.act(v, w)
@@ -149,8 +154,13 @@ def run_trial(args):
             truth = gt.true_pose(model, data)
             e = mission.ekf.x - truth
             e[2] = rm.wrap(e[2])
-            max_err = max(max_err, math.hypot(e[0], e[1]))
-            max_nees = max(max_nees, float(e @ np.linalg.solve(mission.ekf.P, e)))
+            err_xy = math.hypot(e[0], e[1])
+            nees = float(e @ np.linalg.solve(mission.ekf.P, e))
+            max_err, max_nees = max(max_err, err_xy), max(max_nees, nees)
+            sum_nees += nees; sum_sq_err += err_xy ** 2; n_ticks += 1
+            # time from the end of the push until the estimate is back within 3 cm
+            if push and push_recovered is None and data.time > push['t'] + push['dur'] and err_xy < 0.03:
+                push_recovered = data.time - (push['t'] + push['dur'])
             for name in gt.robot_collisions(model, data):
                 if name not in collisions:
                     collisions[name] = {'t': data.time - t0, 'ekf_err': math.hypot(e[0], e[1]), 'state': mission.state}
@@ -167,13 +177,13 @@ def run_trial(args):
                     if push and push['t'] <= data.time < push['t'] + 1.5:
                         tags.append('PUSH!')
                     if occl and occl[0] <= data.time < occl[1]:
-                        tags.append('marker occluded')
+                        tags.append('camera blinded')
                         # the occlusion drops detections in software, so show it on the camera inset too
                         H_, W_ = frame.shape[:2]
                         x0_, y0_ = W_ - 10 - W_ // 3, 10
                         inset = frame[y0_:y0_ + H_ // 3, x0_:W_ - 10]
                         inset[:] = (inset * 0.3 + 90).astype(np.uint8)
-                        cv2.putText(frame, 'marker detections blocked', (x0_ + 40, y0_ + H_ // 6),
+                        cv2.putText(frame, 'tag detections blocked', (x0_ + 40, y0_ + H_ // 6),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
                     if latency:
                         tags.append(f'camera latency {latency:.1f} s')
@@ -188,7 +198,8 @@ def run_trial(args):
                 u = mission.last_update
                 dbg.append((round(data.time - t0, 2), mission.state, truth.round(4).tolist(), mission.ekf.x.round(4).tolist(),
                             float(3 * math.sqrt(mission.ekf.P[0, 0])), None if u is None else (u.used, round(u.nis, 1)),
-                            None if meas is None else round(meas.range, 3)))
+                            mission.ekf.P.tolist(),
+                            [round(m.range, 3) for m in meas]))
     except PlanningError as exc:
         error = f'no path: {exc}'
     except Exception as exc:                                     # report, don't kill the batch
@@ -233,6 +244,8 @@ def run_trial(args):
         'condition': cond, 'trial': idx, 'success': bool(ok), 'final_state': mission.state, 'cause': cause,
         'time_s': float(data.time - t0), 'dock_pos_err_m': pos_err, 'dock_yaw_err_deg': math.degrees(yaw_err),
         'ekf_err_at_end_m': est_err, 'max_ekf_err_m': float(max_err), 'max_nees': float(max_nees),
+        'mean_nees': sum_nees / max(n_ticks, 1), 'ekf_rmse_m': math.sqrt(sum_sq_err / max(n_ticks, 1)),
+        'push_recovery_s': push_recovered, 'ekf_options': ekf_options, 'ippe_flips': mission.ekf.flips,
         'replans': mission.replans, 'safety_stops': mission.safety_stops, 'p_inflations': mission.ekf.inflations,
         'collisions': sorted(collisions), 'layout': layout, 'push': {k: (v.tolist() if hasattr(v, 'tolist') else v)
                                                                      for k, v in push.items()} if push else None,

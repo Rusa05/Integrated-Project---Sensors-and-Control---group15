@@ -6,14 +6,14 @@
 
 ALIGN        turn on the spot to the path heading (the tracker is not controllable at v = 0)
 TRACK        LQR on the A* reference, LiDAR safety stop and replanning
-FINAL_ALIGN  turn to face the marker at the pre-dock pose (0.6 m out, marker well in view)
-DOCK         slow straight-line reference onto the pad, tracked by the same LQR. The marker
-             keeps correcting the EKF until it leaves the camera's view (~0.4 m out); the last
-             ~0.3 m runs on odometry, which drifts only ~0.35 % of distance (phase 2).
-             A LiDAR check stops the robot if the backplate is closer than expected.
+FINAL_ALIGN  turn to face the dock at the pre-dock pose (0.6 m out, dock tags well in view)
+DOCK         slow curved reference onto the pad (ends along the dock axis), tracked by the same
+             LQR. The two small dock tags stay in view right down to the docked pose, so the
+             camera corrects the EKF the whole way in. A LiDAR check stops the robot if the
+             backplate is closer than expected.
 DOCKED / DONE
 
-Inputs are only sensor data (encoder increments, marker measurements, LiDAR scans); the pose
+Inputs are only sensor data (encoder increments, tag measurements, LiDAR scans); the pose
 used everywhere is the EKF estimate.
 """
 import math
@@ -26,7 +26,7 @@ from src.mapping import OccupancyGrid, ROBOT_RADIUS
 from src.planner import plan, time_parametrise, PlanningError
 from src.sensors import LIDAR_ANGLES
 
-PRE_DOCK = (1.30, -1.0, 0.0)          # 0.6 m in front of the marker, facing it
+PRE_DOCK = (1.30, -1.0, 0.0)          # 0.6 m in front of the dock, facing it
 REPLAN_CHECK = 1.0                    # s
 SAFETY_STOP = 0.18                    # m, front LiDAR range that triggers a stop while travelling
 GOAL_TOL = 0.03                       # m, pre-dock arrival
@@ -35,9 +35,9 @@ HEADING_TOL = math.radians(0.5)
 DOCK_V = 0.06                         # m/s, docking speed
 DOCK_A = 0.05                         # m/s^2
 DOCK_TOL = 0.01                       # m
-# At the dock goal the LiDAR centre (0.035 m behind the axle, x = 1.745) is 0.165 m from the
-# backplate face (x = 1.91). A front range below DOCK_STOP means we are about to touch it.
-DOCK_STOP = 0.13
+# At the dock goal the LiDAR centre (0.035 m behind the axle, x = 1.585) is 0.325 m from the
+# backplate face (x = 1.91). A front range below DOCK_STOP means we have overshot the dock.
+DOCK_STOP = 0.27
 
 
 def _front_range(scan, half_width=math.radians(35)):
@@ -47,8 +47,8 @@ def _front_range(scan, half_width=math.radians(35)):
 
 
 class Mission:
-    def __init__(self, x0, P0, goal=PRE_DOCK, dock=True, lqr_r_scale=1.0):
-        self.ekf = EKF(x0, P0)
+    def __init__(self, x0, P0, goal=PRE_DOCK, dock=True, lqr_r_scale=1.0, ekf_options=None):
+        self.ekf = EKF(x0, P0, **(ekf_options or {}))
         self.grid = OccupancyGrid()
         self.lqr = LQRTracker(r_scale=lqr_r_scale)
         self.goal = np.array(goal, dtype=float)
@@ -62,6 +62,7 @@ class Mission:
         # for logging / display
         self.x_ref, self.u_ff, self.e = np.zeros(3), np.zeros(2), np.zeros(3)
         self.last_update = None
+        self.last_updates = []
 
     @property
     def finished(self):
@@ -101,10 +102,11 @@ class Mission:
 
     # ------------------------------------------------------------------------------
     def step(self, t, dphi, meas=None, scan=None):
-        """One 20 ms tick. Returns (v, omega)."""
+        """One 20 ms tick; meas is a list of tag measurements (may be empty). Returns (v, omega)."""
         ekf = self.ekf
         ekf.predict(dphi, t)
-        self.last_update = ekf.update(meas, t, t_meas=meas.t) if meas is not None else None
+        self.last_updates = [r for r in (ekf.update(m, t, t_meas=m.t) for m in (meas or [])) if r is not None]
+        self.last_update = self.last_updates[-1] if self.last_updates else None
         front = None
         if scan is not None:
             self.grid.update(ekf.x, scan)

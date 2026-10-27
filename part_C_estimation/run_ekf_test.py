@@ -82,12 +82,12 @@ def run_trial(seed, r_scale=1.0, slip_frac=None, min_update_dt=None):
             enc_prev = enc
             seen = False
             if sens.camera_due():
-                meas = det.measure(sens.camera())
-                res = ekf.update(meas, data.time) if meas is not None else None
-                if res is not None:
-                    seen = True
-                    upd['t'].append(data.time); upd['nis'].append(res.nis); upd['dof'].append(res.dof)
-                    upd['used'].append(res.used); upd['range'].append(meas.range)
+                for meas in det.measure_all(sens.camera()):
+                    res = ekf.update(meas, data.time)
+                    if res is not None:
+                        seen = True
+                        upd['t'].append(data.time); upd['nis'].append(res.nis); upd['dof'].append(res.dof)
+                        upd['used'].append(res.used); upd['range'].append(meas.range)
             log['t'].append(data.time); log['truth'].append(gt.true_pose(model, data))
             log['est'].append(ekf.x.copy()); log['P'].append(ekf.P.copy())
             log['odo'].append(odo.x.copy()); log['odoP'].append(odo.P.copy()); log['seen'].append(seen)

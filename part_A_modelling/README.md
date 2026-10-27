@@ -31,7 +31,7 @@ We use the **official ROBOTIS TurtleBot3 Waffle Pi model**: it is the TurtleBot3
 | Encoders | Wheel angle and speed (added) |
 | LiDAR | 72 rays at 5° from the LDS-01 turret, 3.5 m range (added) |
 | Camera | `front_camera` at the Pi camera mount, 0.086 m ahead of the axle and 0.107 m up (added) |
-| Room | 4 m × 4 m, two obstacles, ArUco-marked charging station on the east wall ([Part B](../part_B_sensing/)) |
+| Room | 4 m × 4 m, two obstacles, six 15 cm wall tags and an ArUco-marked charging station with three tags ([Part B](../part_B_sensing/)) |
 | Physics | Timestep 0.002 s |
 
 **Keyboard driving (A1):** W/S forward and reverse, A/D turn on the spot, Space stop, R reset, C toggle the robot's camera view, L show LiDAR rays.
@@ -88,9 +88,10 @@ State **x** = [x, y, θ], the pose of `base_link` (on the floor under the wheel 
 | Tracking error, reference at rest | 2 / 3 | A wheeled robot can't fix a sideways error standing still. So the robot turns on the spot before tracking, and docking uses a moving reference |
 | Odometry only | 0 / 3 | Absolute pose unobservable: it drifts forever |
 | Range + bearing to one marker, even moving | **2 / 3** | Rotating the whole path about the marker gives identical readings |
-| Range + bearing + **marker yaw** | **3 / 3** | The EKF uses this pose measurement ([Part C](../part_C_estimation/)) |
+| Range + bearing + **tag yaw** | **3 / 3** (condition 2.8) | The EKF uses this pose measurement ([Part C](../part_C_estimation/)) |
+| **Two tags 10 cm apart**, range + bearing only, stationary | **3 / 3** (condition 40) | Why the dock has two small tags: they make the pose observable without the tag's yaw. The high condition number means one direction (sideways offset paired with heading) is only weakly constrained, which mattered when tuning R (Part C) |
 
-The rank-2 result for range + bearing came back as a real failure in [Part E](../part_E_integration_and_robustness/). Range + bearing updates from beyond 2 m, where the yaw isn't usable, made the estimate worse, so the EKF only fuses the marker within 2 m.
+The rank-2 result for range + bearing to one tag came back as a real failure in [Part E](../part_E_integration_and_robustness/). Range + bearing updates from far away, where the yaw isn't usable, made the estimate worse, so the EKF limits how far away each tag is fused (scaled by tag size).
 
 ## Results (`results/`)
 

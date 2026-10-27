@@ -19,7 +19,7 @@ import math
 import mujoco
 import numpy as np
 
-from src import model as robot_model
+from src import config, model as robot_model
 
 N_BEAMS = 72
 LIDAR_ANGLES = np.arange(N_BEAMS) * 2 * math.pi / N_BEAMS   # 0 = forward, positive = left
@@ -98,11 +98,17 @@ class Sensors:
         return np.clip(grey, 0, 255).astype(np.uint8)
 
     def camera_intrinsics(self):
-        """Pinhole intrinsics from the simulated camera's vertical field of view."""
+        """Calibrated pinhole intrinsics (checkerboard calibration, part_B_sensing/calibrate_camera.py).
+        The calibration chose a pinhole model with no distortion on held-out views."""
+        fx, fy, cx, cy = config.CAMERA_MATRIX
+        return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]])
+
+    def camera_intrinsics_from_fov(self):
+        """What the field of view alone implies (pixel centres at (W-1)/2, (H-1)/2), for comparison."""
         n = self.noise
         fovy = math.radians(self.model.cam('front_camera').fovy[0])
         f = n.camera_height / (2 * math.tan(fovy / 2))
-        return np.array([[f, 0, n.camera_width / 2], [0, f, n.camera_height / 2], [0, 0, 1]])
+        return np.array([[f, 0, (n.camera_width - 1) / 2], [0, f, (n.camera_height - 1) / 2], [0, 0, 1]])
 
     def close(self):
         if self._renderer is not None:

@@ -1,30 +1,56 @@
-"""Generate the ArUco texture used on the charging station (turtlebot3/assets/aruco_dock.png). Run from anywhere: python part_B_sensing/make_aruco.py.
+"""Part B, step B1: generate the ArUco tag textures and check the scene matches the tag map.
 
-The marker's black square is MARKER_SIZE metres wide in the scene and is surrounded by a
-white quiet zone of BORDER metres, so the textured plane in scene.xml is
-MARKER_SIZE + 2*BORDER wide. Keep these numbers in sync with the dock in scene.xml.
+    python part_B_sensing/make_aruco.py
+
+For every tag in src/config.py TAGS this writes turtlebot3/assets/aruco_<id>.png (black square of
+the tag's size plus a white quiet zone of TAG_BORDER_FRAC * size on each side), then loads the
+scene and checks that each tag's site ('tag_<id>') sits where the map says, facing the right way.
 """
 from pathlib import Path
+import math
+import sys
+
 import cv2
+import mujoco
 import numpy as np
 
-DICTIONARY = cv2.aruco.DICT_4X4_50
-MARKER_ID = 0
-MARKER_SIZE = 0.10      # m, black square side length
-BORDER = 0.02           # m, white quiet zone on each side
-PX_PER_M = 4000         # texture resolution
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from src import config      # noqa: E402
 
-OUT = Path(__file__).resolve().parent.parent / 'turtlebot3' / 'assets' / 'aruco_dock.png'
+PX_PER_M = 4000              # texture resolution (a 10 cm tag is 400 px)
+ASSETS = ROOT / 'turtlebot3' / 'assets'
 
-def main():
-    marker_px = int(MARKER_SIZE * PX_PER_M)
-    border_px = int(BORDER * PX_PER_M)
-    dictionary = cv2.aruco.getPredefinedDictionary(DICTIONARY)
-    marker = cv2.aruco.generateImageMarker(dictionary, MARKER_ID, marker_px)
-    image = np.pad(marker, border_px, constant_values=255)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(OUT), image)
-    print(f'wrote {OUT} ({image.shape[1]}x{image.shape[0]} px, id {MARKER_ID})')
+
+def make_textures():
+    dictionary = cv2.aruco.getPredefinedDictionary(config.ARUCO_DICT)
+    for tag in config.TAGS.values():
+        px = max(int(tag.size * PX_PER_M), 120)
+        img = cv2.aruco.generateImageMarker(dictionary, tag.id, px)
+        img = np.pad(img, int(round(px * config.TAG_BORDER_FRAC)), constant_values=255)
+        out = ASSETS / f'aruco_{tag.id}.png'
+        cv2.imwrite(str(out), img)
+        print(f'wrote {out.name}: id {tag.id}, {tag.size * 100:.0f} cm, {img.shape[1]} px')
+
+
+def check_scene():
+    model = mujoco.MjModel.from_xml_path(str(config.SCENE))
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    worst = 0.0
+    for tag in config.TAGS.values():
+        site = data.site(f'tag_{tag.id}')
+        normal = site.xmat.reshape(3, 3)[:, 2]
+        pos_err = np.linalg.norm(site.xpos - [tag.x, tag.y, tag.z])
+        yaw_err = abs(math.remainder(math.atan2(normal[1], normal[0]) - tag.yaw, 2 * math.pi))
+        plate = model.geom(f'aruco_{tag.id}').size[0] * 2
+        size_err = abs(plate - tag.size * (1 + 2 * config.TAG_BORDER_FRAC))
+        worst = max(worst, pos_err, yaw_err, size_err)
+        if pos_err > 1e-6 or yaw_err > 1e-6 or size_err > 1e-6:
+            print(f'MISMATCH tag {tag.id}: position {pos_err:.4f} m, yaw {yaw_err:.4f} rad, plate {size_err:.4f} m')
+    print('scene matches the tag map' if worst <= 1e-6 else 'scene does NOT match src/config.py TAGS')
+
 
 if __name__ == '__main__':
-    main()
+    make_textures()
+    check_scene()

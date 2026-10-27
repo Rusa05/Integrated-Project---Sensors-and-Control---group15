@@ -8,7 +8,7 @@ Modes (run from the project root; on macOS use mjpython for --viewer):
 
 Overlays (viewer and video): blue arrow = EKF estimate, blue ellipse = its 3-sigma position
 uncertainty, orange dots = current plan, blue/black trails = estimated/true path. The video also
-shows the robot's camera with the detected marker, and the estimate-vs-truth error.
+shows the robot's camera with the detected tags outlined, and the estimate-vs-truth error.
 
 The robot runs entirely on src/ (sensors -> EKF -> planner -> LQR). Ground truth is read only in
 this file through eval/ground_truth.py, to score the run and draw the true trail.
@@ -84,11 +84,11 @@ def draw_overlays(scn, mission, est_trail, true_trail):
 def compose_frame(scene_rgb, robot, mission, truth, t):
     img = cv2.cvtColor(scene_rgb, cv2.COLOR_RGB2BGR)
     H, W = img.shape[:2]
-    # inset: what the robot's camera sees, with the detected marker outlined
+    # inset: what the robot's camera sees, with the detected tags outlined
     if robot.last_frame is not None:
         cam = cv2.cvtColor(robot.last_frame, cv2.COLOR_GRAY2BGR)
-        if robot.last_marker is not None:
-            cv2.polylines(cam, [robot.last_marker.corners.astype(np.int32)], True, (0, 255, 0), 3)
+        for m in robot.last_markers:
+            cv2.polylines(cam, [m.corners.astype(np.int32)], True, (0, 255, 0), 3)
         cam = cv2.resize(cam, (W // 3, H // 3))
         img[10:10 + cam.shape[0], W - 10 - cam.shape[1]:W - 10] = cam
         cv2.rectangle(img, (W - 10 - cam.shape[1], 10), (W - 10, 10 + cam.shape[0]), (255, 255, 255), 1)
@@ -98,7 +98,7 @@ def compose_frame(scene_rgb, robot, mission, truth, t):
              f'EKF  x {est[0]:+.3f}  y {est[1]:+.3f}  th {math.degrees(est[2]):+6.1f} deg',
              f'true x {truth[0]:+.3f}  y {truth[1]:+.3f}  th {math.degrees(truth[2]):+6.1f} deg',
              f'error {err * 100:4.1f} cm   3-sigma {300 * math.sqrt(max(P[0, 0], P[1, 1])):4.1f} cm',
-             f'marker: {"seen, " + format(robot.last_marker.range, ".2f") + " m" if robot.last_marker else "not in view"}']
+             'tags in view: ' + (', '.join(f'{m.id} ({m.range:.2f} m)' for m in robot.last_markers) or 'none')]
     legend = ['blue arrow/ellipse: EKF estimate, 3-sigma', 'blue dots: estimated path   black dots: true path',
               'orange dots: planned path']
 
@@ -153,8 +153,9 @@ def run(start, seed=0, viewer=False, record=None, realtime=True):
             started = time.perf_counter()
             dphi, meas, scan = robot.sense()
             v, w = mission.step(robot.time, dphi, meas, scan)       # EKF estimate only
-            if meas is not None:
-                marker_last_seen_range = meas.range
+            dock_seen = [m.range for m in meas if m.id in config.DOCK_TAG_IDS]
+            if dock_seen:
+                marker_last_seen_range = min(dock_seen)
             robot.act(v, w)
             # ---- evaluation / display only ------------------------------------------------
             truth = gt.true_pose(model, data)

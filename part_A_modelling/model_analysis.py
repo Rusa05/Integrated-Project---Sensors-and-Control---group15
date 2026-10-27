@@ -53,6 +53,8 @@ def model_analysis():
 
     print('\n== Part A: observability over 50 steps (1 s) ==')
     m = np.array(config.MARKER_XY)
+    # the two small dock tags, 10 cm apart (src/config.py TAGS 7 and 8)
+    m7, m8 = (np.array([config.TAGS[i].x, config.TAGS[i].y]) for i in (7, 8))
     x0 = np.array([0.8, -0.8, 0.0])
     obs = {}
     for label, u, meas in [
@@ -62,6 +64,7 @@ def model_analysis():
         ('range only, moving', (0.15, 0.2), 'r'),
         ('bearing only, moving', (0.15, 0.2), 'b'),
         ('range+bearing+marker yaw, stationary', (0.0, 0.0), 'rby'),
+        ('two tags 10 cm apart, range+bearing, stationary', (0.0, 0.0), 'rb2'),
     ]:
         x, Fs, Hs = x0.copy(), [], []
         for _ in range(50):
@@ -74,6 +77,8 @@ def model_analysis():
                 H = rm.H_range_bearing(x, m)[1:]
             elif meas == 'rby':
                 H = rm.H_range_bearing_yaw(x, m)
+            elif meas == 'rb2':
+                H = np.vstack([rm.H_range_bearing(x, m7), rm.H_range_bearing(x, m8)])
             Fs.append(rm.jacobian_state(x, u))
             Hs.append(H)
             x = rm.f_discrete(x, u)
@@ -81,7 +86,7 @@ def model_analysis():
         sv = np.linalg.svd(O, compute_uv=False) if O.size else np.array([0.0])
         cond = float(sv[0] / sv[-1]) if rank == 3 else float('inf')
         obs[label] = {'rank': int(rank), 'condition': cond}
-        print(f'  {label:40s} rank {rank}/3   cond {cond:.1f}')
+        print(f'  {label:48s} rank {rank}/3   cond {cond:.1f}')
     return {'controllability_rank': ctrb, 'observability': obs}
 
 
