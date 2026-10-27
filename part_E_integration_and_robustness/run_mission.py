@@ -1,9 +1,9 @@
-"""Phase 5: the full Track A mission, start -> navigate around obstacles -> dock on the pad.
+"""Part E, step E1: the full Track A mission, start -> navigate around obstacles -> dock on the pad.
 
-Modes (run from the project root; on macOS use mjpython for --viewer):
-    python part_E_integration_and_robustness/run_mission.py                   # batch: scenarios x seeds, headless
-    python part_E_integration_and_robustness/run_mission.py --viewer          # one run, live MuJoCo viewer
+Modes (run from the project root, or just press Run in VS Code; on macOS use mjpython):
+    python part_E_integration_and_robustness/run_mission.py                   # one run, live MuJoCo viewer
     python part_E_integration_and_robustness/run_mission.py --record run.mp4  # one run, saved as a video
+    python part_E_integration_and_robustness/run_mission.py --batch           # scenarios x seeds, headless
     add --scenario B_box_in_way / --seed 2 to choose the run; --start x y theta for any start pose
 
 Overlays (viewer and video): blue arrow = EKF estimate, blue ellipse = its 3-sigma position
@@ -209,7 +209,8 @@ def run(start, seed=0, viewer=False, record=None, realtime=True):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--viewer', action='store_true')
+    ap.add_argument('--batch', action='store_true', help='run all scenarios x seeds headless and save results')
+    ap.add_argument('--viewer', action='store_true', help='(default when neither --batch nor --record is given)')
     ap.add_argument('--record', type=str)
     ap.add_argument('--scenario', default='A_cylinder_in_way', choices=list(SCENARIOS))
     ap.add_argument('--start', type=float, nargs=3, metavar=('X', 'Y', 'THETA'))
@@ -218,8 +219,10 @@ def main():
     args = ap.parse_args()
     start = tuple(args.start) if args.start else SCENARIOS[args.scenario]
 
-    if args.viewer or args.record:
-        res = run(start, args.seed, viewer=args.viewer, record=args.record)
+    if not args.batch:
+        if not args.record:
+            print('Opening the MuJoCo viewer (it closes itself after the robot docks; use --batch for the full test).')
+        res = run(start, args.seed, viewer=not args.record or args.viewer, record=args.record)
         print(json.dumps(res, indent=2))
         return
 

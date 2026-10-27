@@ -52,11 +52,13 @@ cd Integrated-Project---Sensors-and-Control---group15
 python -m pip install -r requirements.txt
 ```
 
-Watch a full mission (on macOS use `mjpython` instead of `python` for anything that opens a viewer):
+Watch a full mission: open `part_E_integration_and_robustness/run_mission.py` in VS Code and press ▶ Run, or from the repository root:
 
 ```bash
-python part_E_integration_and_robustness/run_mission.py --viewer
+python part_E_integration_and_robustness/run_mission.py
 ```
+
+A MuJoCo window opens, the robot drives to the dock, and the window closes itself after it docks. On macOS use `mjpython` instead of `python` for anything that opens a viewer.
 
 Other entry points (all run from the repository root):
 
@@ -64,7 +66,7 @@ Other entry points (all run from the repository root):
 |---|---|---|
 | `python part_A_modelling/turtlebot_sim.py` | Drive the robot yourself (W/A/S/D, C = camera view) | n/a |
 | `python part_E_integration_and_robustness/run_mission.py --record mission.mp4` | Record a full mission with overlays | ~1 min |
-| `python part_E_integration_and_robustness/run_mission.py --scenario B_box_in_way --viewer` | Other start positions: `A_cylinder_in_way`, `B_box_in_way`, `C_far_corner`, or `--start X Y THETA` | n/a |
+| `python part_E_integration_and_robustness/run_mission.py --scenario B_box_in_way` | Other start positions: `A_cylinder_in_way`, `B_box_in_way`, `C_far_corner`, or `--start X Y THETA` | n/a |
 | `python part_E_integration_and_robustness/run_trials.py --record disturbed.mp4 --only combined --trial 7` | Record a disturbed run (push, slip, occlusion, latency) | ~1 min |
 | `python part_E_integration_and_robustness/run_trials.py --trials 3` | Quick robustness batch | ~3 min |
 
@@ -380,7 +382,7 @@ The repository is organised by the marking guide's parts. Each part folder has a
 | [`part_B_sensing/`](part_B_sensing/) | **B** Sensing | B1 tag map · B2 detection check · B3 frame diagram · B4 noise model · B5 checkerboard calibration | `python part_B_sensing/make_aruco.py`<br>`python part_B_sensing/check_dock_marker.py`<br>`python part_B_sensing/sensor_noise.py`<br>`python part_B_sensing/calibrate_camera.py` | 2 min |
 | [`part_C_estimation/`](part_C_estimation/) | **C** Estimation | C1 EKF Monte Carlo, NEES/NIS, R study · C2 Q-scale and measurement-ablation studies | `python part_C_estimation/run_ekf_test.py`<br>`python part_C_estimation/tradeoff_studies.py` | 6 + 3 min |
 | [`part_D_control/`](part_D_control/) | **D** Control | D1 navigation + LQR trade-off · D2 docking controller | `python part_D_control/run_navigation.py` | 4 min |
-| [`part_E_integration_and_robustness/`](part_E_integration_and_robustness/) | **E** Integration and robustness | E1 full mission + video · E2 80 disturbed trials | `python part_E_integration_and_robustness/run_mission.py`<br>`python part_E_integration_and_robustness/run_trials.py` | 3 + 5 min |
+| [`part_E_integration_and_robustness/`](part_E_integration_and_robustness/) | **E** Integration and robustness | E1 full mission + video · E2 80 disturbed trials | `python part_E_integration_and_robustness/run_mission.py --batch`<br>`python part_E_integration_and_robustness/run_trials.py` | 3 + 5 min |
 | [`deliverables/`](deliverables/) | Section 3 checklist | Submission checklist, 5-minute video plan | n/a | n/a |
 
 Shared code, used by every part:

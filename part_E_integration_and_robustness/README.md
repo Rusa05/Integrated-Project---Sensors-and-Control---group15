@@ -9,18 +9,18 @@ This part covers the complete pipeline in one run (start → navigate → dock),
 
 | Step | Script | What it does | Time |
 |---|---|---|---|
-| E1 | `run_mission.py` | Full mission, 3 scenarios × 3 seeds, headless | 3 min |
-| E1 | `run_mission.py --viewer` | Watch one mission live in MuJoCo | n/a |
+| E1 | `run_mission.py` | Watch one mission live in MuJoCo (also what VS Code's ▶ Run button does) | 35 s |
+| E1 | `run_mission.py --batch` | Full mission, 3 scenarios × 3 seeds, headless; saves `results/mission/` | 3 min |
 | E1 | `run_mission.py --record mission.mp4` | Record one mission with overlays (demo video) | 1 min |
 | E2 | `run_trials.py` | 8 conditions × 10 random trials, 4 processes | 5 min |
 | E2 | `run_trials.py --record run.mp4 --only combined --trial 7` | Record one disturbed trial | 1 min |
 | E2 | `run_trials.py --report-only` | Redraw the plots from saved results | 5 s |
 
-Run from the project root, for example `python part_E_integration_and_robustness/run_mission.py --viewer`.
+Run from the project root, for example `python part_E_integration_and_robustness/run_mission.py`, or open the file in VS Code and press ▶ Run.
 
 - `run_mission.py` options: `--scenario A_cylinder_in_way | B_box_in_way | C_far_corner`, `--seed N`, `--start X Y THETA`.
 - `run_trials.py` options: `--trials N`, `--only CONDITION`.
-- On macOS use `mjpython` for `--viewer`.
+- On macOS use `mjpython` for the live viewer.
 
 Results: `results/mission/` (E1) and `results/trials/` (E2).
 
