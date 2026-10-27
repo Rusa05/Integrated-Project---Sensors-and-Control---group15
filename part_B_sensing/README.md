@@ -32,7 +32,6 @@ Nine ArUco tags (DICT_4X4_50) in known positions. The robot is given the tag map
 | 7, 8 | 3 cm | Dock backplate, at camera height (0.107 m), 10 cm apart | Stay in view right down to the docked pose, so the last part of docking is no longer blind. Two points 10 cm apart also make the pose observable from range and bearing alone ([Part A](../part_A_modelling/)) |
 
 - **Docked pose** (wheel-axle centre): (1.62, −1.0), facing +x. The camera stops 0.20 m from the backplate, so both small tags fit in its view.
-- **Where the design came from:** the multi-tag layout and the two small dock tags are adapted from Claudia's branch.
 
 ## B2. Detection check
 

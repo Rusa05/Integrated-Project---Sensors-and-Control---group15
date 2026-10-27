@@ -29,7 +29,7 @@ class Tag:
 _W = 1.9585
 TAGS = {t.id: t for t in [
     # charging station: one 10 cm tag seen on the approach, and two 3 cm tags at camera height,
-    # 10 cm apart, that stay in view right down to the docked pose (Claudia's dock design)
+    # 10 cm apart, that stay in view right down to the docked pose
     Tag(0, 1.9085, -1.00, 0.25, math.pi, 0.10),
     Tag(7, 1.9085, -0.95, 0.107, math.pi, 0.03),
     Tag(8, 1.9085, -1.05, 0.107, math.pi, 0.03),

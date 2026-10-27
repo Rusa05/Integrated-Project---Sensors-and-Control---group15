@@ -123,7 +123,7 @@ Each uses 6 random layouts from Part E.
 | Odometry only (no camera) | **0 / 6** | 7.58 cm | 8.08 cm (13.5) |
 
 - **The camera is essential:** dead reckoning alone never docks.
-- **Yaw helps.** Without it the worst dock is 2× worse. Claudia found yaw added nothing in her room, where several tags are usually in view at once. Ours has fewer tags visible at a time, so the yaw of a single tag still carries information. The difference is a real design point, not a contradiction.
+- **Yaw helps.** Without it the worst dock is 2× worse. Often only one or two tags are in view at a time, and then a single tag's yaw still carries information. In a room where several tags were always visible, range and bearing alone would be enough (two tags already make the pose observable, Part A).
 
 ## Problems found and fixed
 

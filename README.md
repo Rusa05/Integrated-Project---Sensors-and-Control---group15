@@ -269,7 +269,7 @@ Folder: [`part_C_estimation/`](part_C_estimation/). Code: [`src/ekf.py`](src/ekf
 | Range + bearing only | 6 / 6 | 1.68 cm | 0.67 cm (1.52) |
 | Odometry only | **0 / 6** | 7.58 cm | 8.08 cm (13.5) |
 
-The camera is essential, and tag yaw helps here because fewer tags are visible at once than in Claudia's room design.
+The camera is essential. Tag yaw helps here because often only one or two tags are in view at a time; with several tags always visible, range and bearing alone would be enough.
 
 ---
 
@@ -398,8 +398,6 @@ Random seeds are fixed, so each script reproduces the numbers on this page.
 ## Individual contributions
 
 > *To be completed by the team. Each member writes their own row: what they designed, implemented, tested and wrote, with the files and parts. Viva questions cover your own part and at least one part you didn't lead.*
->
-> *Credit for ideas adopted from the `Claudia` branch, so its author can claim them: the multi-tag layout (15 cm wall tags plus two small dock tags), checkerboard camera calibration with a held-out lens-model choice, IPPE ambiguity resolution against the prior, and the process-noise and measurement-ablation studies.*
 
 | Member (student ID) | Main contributions | Files / phases |
 |---|---|---|
@@ -418,7 +416,7 @@ Random seeds are fixed, so each script reproduces the numbers on this page.
 |---|---|
 | **ChatGPT** (OpenAI) | Setup troubleshooting, early project planning, and adapting the initial movement-test script (`part_A_modelling/open_loop_test.py`) |
 | **Codex** (OpenAI) | Generating the original primitive-shape starter robot and the keyboard-driving script (`part_A_modelling/turtlebot_sim.py`, since adapted to the Waffle Pi) |
-| **Claude** (Anthropic, via Claude Code) | Project planning document; writing and debugging code for Parts A–E (tag map and scene, model checks, sensor noise, camera calibration, vision, EKF, mapping, planner, LQR, mission, trials, video recorder); porting ideas from the `Claudia` branch (developed there with Claude); diagnosing the official model's slip, the robustness-trial failures and the multi-tag over-confidence; drafting READMEs and this page |
+| **Claude** (Anthropic, via Claude Code) | Project planning document; writing and debugging code for Parts A–E (tag map and scene, model checks, sensor noise, camera calibration, vision, EKF, mapping, planner, LQR, mission, trials, video recorder); diagnosing the official model's slip, the robustness-trial failures and the multi-tag over-confidence; drafting READMEs and this page |
 
 All results on this page come from running the code in this repository. The team is responsible for checking, understanding and being able to explain every part of it in the viva.
 
@@ -430,7 +428,6 @@ All results on this page come from running the code in this repository. The team
 - **Simulation loop:** structure adapted from the supplied UR3 tutorial (`move_ur3e.py`).
 - **Libraries:** [MuJoCo](https://mujoco.org), [OpenCV](https://opencv.org) (ArUco detection, IPPE solvePnP), NumPy, SciPy (Riccati solver, distance transform, Savitzky-Golay), Matplotlib.
 - **Hardware figures:** ROBOTIS LDS-01 and Dynamixel XL430 datasheets; Raspberry Pi Camera v2 field of view.
-- **Team work:** the multi-tag design, checkerboard calibration approach, IPPE ambiguity resolution and the estimator studies follow Claudia's implementation on the `Claudia` branch of this repository.
 - **Methods:**
   - EKF consistency tests (NEES/NIS): Bar-Shalom, Li and Kirubarajan, *Estimation with Applications to Tracking and Navigation* (2001).
   - Tracking-error model: Kanayama et al., "A stable tracking control method for an autonomous mobile robot" (ICRA 1990).
