@@ -1,0 +1,162 @@
+{
+  "summary": {
+    "runs": 9,
+    "success": 9,
+    "mean_dock_pos_err_m": 0.00576384739199119,
+    "max_dock_pos_err_m": 0.006037053955832611,
+    "mean_abs_yaw_err_deg": 0.15446753724297035,
+    "mean_time_s": 33.63555555555102
+  },
+  "runs": {
+    "A_cylinder_in_way": [
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 33.01999999999439,
+        "dock_pos_err_m": 0.005725611513246481,
+        "dock_lateral_err_m": 0.00034349995719618054,
+        "dock_depth_err_m": -0.005715298328173857,
+        "dock_yaw_err_deg": 0.02786486993791208,
+        "ekf_err_at_dock_m": 0.003259311887050087,
+        "ekf_3sigma_at_dock_m": 0.006303609017449143,
+        "marker_last_seen_range_m": 0.2953728913547417,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      },
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 32.41999999999366,
+        "dock_pos_err_m": 0.006037053955832611,
+        "dock_lateral_err_m": 0.0012358188596180986,
+        "dock_depth_err_m": -0.00590921079433171,
+        "dock_yaw_err_deg": -0.2688571990235583,
+        "ekf_err_at_dock_m": 0.0036084197002103843,
+        "ekf_3sigma_at_dock_m": 0.006336486313678453,
+        "marker_last_seen_range_m": 0.29610187071489547,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      },
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 33.039999999994414,
+        "dock_pos_err_m": 0.005527289872720111,
+        "dock_lateral_err_m": -0.0002365479315900032,
+        "dock_depth_err_m": -0.005522225856765983,
+        "dock_yaw_err_deg": 0.22520355879373832,
+        "ekf_err_at_dock_m": 0.0030858933500760603,
+        "ekf_3sigma_at_dock_m": 0.006269803029685105,
+        "marker_last_seen_range_m": 0.2968035964432887,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      }
+    ],
+    "B_box_in_way": [
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 31.69999999999331,
+        "dock_pos_err_m": 0.005644392134443452,
+        "dock_lateral_err_m": 0.0008653837757387484,
+        "dock_depth_err_m": -0.00557765842339375,
+        "dock_yaw_err_deg": -0.13787809672257376,
+        "ekf_err_at_dock_m": 0.0032336333377047765,
+        "ekf_3sigma_at_dock_m": 0.00672486946817146,
+        "marker_last_seen_range_m": 0.3002500689652858,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      },
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 30.719999999993853,
+        "dock_pos_err_m": 0.005364925045761296,
+        "dock_lateral_err_m": 0.0015949079736805594,
+        "dock_depth_err_m": -0.005122371452962682,
+        "dock_yaw_err_deg": -0.38706183977842534,
+        "ekf_err_at_dock_m": 0.0028803913525001948,
+        "ekf_3sigma_at_dock_m": 0.006932132728433775,
+        "marker_last_seen_range_m": 0.29453939233986537,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      },
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 31.939999999993177,
+        "dock_pos_err_m": 0.005908446110413367,
+        "dock_lateral_err_m": 0.0005277313732379163,
+        "dock_depth_err_m": -0.005884830926828677,
+        "dock_yaw_err_deg": -0.047617902834937935,
+        "ekf_err_at_dock_m": 0.0034993343668410755,
+        "ekf_3sigma_at_dock_m": 0.006603575496334543,
+        "marker_last_seen_range_m": 0.2974855373562702,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      }
+    ],
+    "C_far_corner": [
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 36.959999999999205,
+        "dock_pos_err_m": 0.005887290342490964,
+        "dock_lateral_err_m": 0.00052281290598577,
+        "dock_depth_err_m": -0.005864030545803978,
+        "dock_yaw_err_deg": -0.05874424888333175,
+        "ekf_err_at_dock_m": 0.0033653125167026304,
+        "ekf_3sigma_at_dock_m": 0.006387342372213652,
+        "marker_last_seen_range_m": 0.297740461513048,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      },
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 36.47999999999862,
+        "dock_pos_err_m": 0.005797712325125146,
+        "dock_lateral_err_m": 0.0009180558127110938,
+        "dock_depth_err_m": -0.00572456476333838,
+        "dock_yaw_err_deg": -0.17201278165526207,
+        "ekf_err_at_dock_m": 0.0033525418002480225,
+        "ekf_3sigma_at_dock_m": 0.0064523463775201465,
+        "marker_last_seen_range_m": 0.29969550275068185,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      },
+      {
+        "docked": true,
+        "success": true,
+        "time_s": 36.43999999999857,
+        "dock_pos_err_m": 0.005981905227887285,
+        "dock_lateral_err_m": 0.000562446952853235,
+        "dock_depth_err_m": -0.005955404569015554,
+        "dock_yaw_err_deg": -0.0649673375569937,
+        "ekf_err_at_dock_m": 0.003521688545129801,
+        "ekf_3sigma_at_dock_m": 0.0064574998399012234,
+        "marker_last_seen_range_m": 0.2972656113787453,
+        "collisions": [],
+        "replans": 0,
+        "lidar_dock_stop": false,
+        "final_state": "DOCKED"
+      }
+    ]
+  }
+}

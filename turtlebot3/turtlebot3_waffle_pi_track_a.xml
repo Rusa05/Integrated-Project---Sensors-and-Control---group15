@@ -1,0 +1,249 @@
+<mujoco model="turtlebot3_waffle_pi_track_a">
+  <!-- Official ROBOTIS TurtleBot3 Waffle Pi model (robotis_mujoco_menagerie, Apache-2.0, see
+       LICENSE_ROBOTIS.txt; unmodified copy in turtlebot3_waffle_pi_official.xml).
+       Track A additions, all marked "TRACK A" below:
+         * front_camera at the Raspberry Pi camera mount (Pi Camera v2: 62.2 x 48.8 deg FOV)
+         * 72 LiDAR rangefinder rays at the LDS-01 turret, 5 deg apart, 0 = forward, + = left
+         * wheel encoder (jointpos) and speed (jointvel) sensors
+         * chassis collision mesh replaced by a raised box (reason at the geom below)
+         * casters given contact priority so they stay frictionless on the floor (reason at the casters)
+         * wheel velocity-servo gain kv 0.1 -> 1.0 (reason at the actuator default below)
+       Effect of each change: python part_A_modelling/official_model_checks.py
+       The <option> line moved to scene.xml so the scene owns all solver settings. -->
+  <compiler angle="radian" meshdir="assets/"/>
+
+  <asset>
+    <material name="grey" rgba="0.3 0.3 0.3 1"/>
+    <material name="black" rgba="0.1 0.1 0.1 1"/>
+
+    <mesh name="waffle_pi_base" file="waffle_pi_base.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="left_tire" file="left_tire.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="right_tire" file="right_tire.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="lds" file="lds.stl" scale="0.001 0.001 0.001"/>
+  </asset>
+
+  <default>
+    <!-- Wheel motor -->
+    <default class="wheel">
+      <joint limited="false" frictionloss="0.1" armature="0.01"/>
+      <!-- TRACK A: kv raised from the official 0.1 to 1.0. Against the official 0.1 N m joint frictionloss,
+           kv=0.1 leaves the wheels at ~75 % of the commanded speed; the real XL430 runs its own velocity
+           loop and tracks closely. kv=1.0 gives ~97 %. -->
+      <velocity kv="1.0" ctrlrange="-7.88 7.88" ctrllimited="true"/>
+      <default class="wheel_left">
+        <joint axis="0 0 1"/>
+      </default>
+      <default class="wheel_right">
+        <joint axis="0 0 1"/>
+      </default>
+    </default>
+    <!-- Visual / Collision -->
+    <default class="visual">
+      <geom type="mesh" contype="0" conaffinity="0" density="0" group="2"/>
+    </default>
+    <default class="collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="base" pos="0 0 0">
+      <inertial pos="-0.064 0 0.06" mass="1.8" diaginertia="0.01 0.01 0.008"/>
+      <joint type="free" name="base_joint"/>
+      <geom pos="-0.064 0 0.01" mesh="waffle_pi_base" material="black" class="visual"/>
+      <!-- TRACK A: the official collision mesh (convex hull of the chassis) reaches the floor and carries
+           ~35 % of the robot's weight. Together with the caster issue below this gave ~11 % wheel slip
+           driving straight and ~24 % turning on the spot.
+           Replaced by a box over the same footprint (x -0.197..0.077, y +-0.139) raised 1 cm off the
+           floor, so the wheels and casters carry the load as on the real robot.
+      <geom pos="-0.064 0 0.01" mesh="waffle_pi_base" class="collision"/> -->
+      <geom name="chassis_collision" type="box" pos="-0.06 0 0.0655" size="0.137 0.139 0.0535" group="3" density="0"/>
+      <!-- TRACK A: priority="1" on both casters. Without it MuJoCo mixes contact parameters with the floor
+           (max condim, max friction), so the "frictionless" casters get the floor's friction and drag
+           sideways in every turn once they carry load. -->
+      <geom size="0.005" pos="-0.177 -0.064 0.005" type="sphere" material="grey" friction="0.0001 0.0001 0.0001" solref="0.02 1" solimp="0.95 0.99 0.001" condim="1" priority="1"/>
+      <geom size="0.005" pos="-0.177 0.064 0.005" type="sphere" material="grey" friction="0.0001 0.0001 0.0001" solref="0.02 1" solimp="0.95 0.99 0.001" condim="1" priority="1"/>
+      <geom pos="-0.049 0 0.1255" mesh="lds" material="black" class="visual"/>
+      <geom pos="-0.049 0 0.1255" mesh="lds" class="collision"/>
+      <geom size="0.0075 0.015 0.0135" pos="0.078 0 0.107" type="box" material="grey"/>
+      <!-- TRACK A: camera on the front face of the Pi camera mount (box above at x=0.078, half-depth 0.0075).
+           MuJoCo cameras look along their -Z axis; xyaxes makes image-right = -Y and image-up = +Z. -->
+      <camera name="front_camera" pos="0.0856 0 0.107" xyaxes="0 -1 0 0 0 1" fovy="48.8"/>
+      <!-- TRACK A: LDS-01 scan plane inside the turret (turret spans x -0.082..0.012, z 0.095..0.135) -->
+      <site name="ray_000" pos="-0.035 0 0.120" zaxis="1.00000000 0.00000000 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_001" pos="-0.035 0 0.120" zaxis="0.99619470 0.08715574 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_002" pos="-0.035 0 0.120" zaxis="0.98480775 0.17364818 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_003" pos="-0.035 0 0.120" zaxis="0.96592583 0.25881905 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_004" pos="-0.035 0 0.120" zaxis="0.93969262 0.34202014 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_005" pos="-0.035 0 0.120" zaxis="0.90630779 0.42261826 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_006" pos="-0.035 0 0.120" zaxis="0.86602540 0.50000000 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_007" pos="-0.035 0 0.120" zaxis="0.81915204 0.57357644 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_008" pos="-0.035 0 0.120" zaxis="0.76604444 0.64278761 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_009" pos="-0.035 0 0.120" zaxis="0.70710678 0.70710678 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_010" pos="-0.035 0 0.120" zaxis="0.64278761 0.76604444 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_011" pos="-0.035 0 0.120" zaxis="0.57357644 0.81915204 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_012" pos="-0.035 0 0.120" zaxis="0.50000000 0.86602540 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_013" pos="-0.035 0 0.120" zaxis="0.42261826 0.90630779 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_014" pos="-0.035 0 0.120" zaxis="0.34202014 0.93969262 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_015" pos="-0.035 0 0.120" zaxis="0.25881905 0.96592583 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_016" pos="-0.035 0 0.120" zaxis="0.17364818 0.98480775 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_017" pos="-0.035 0 0.120" zaxis="0.08715574 0.99619470 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_018" pos="-0.035 0 0.120" zaxis="0.00000000 1.00000000 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_019" pos="-0.035 0 0.120" zaxis="-0.08715574 0.99619470 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_020" pos="-0.035 0 0.120" zaxis="-0.17364818 0.98480775 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_021" pos="-0.035 0 0.120" zaxis="-0.25881905 0.96592583 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_022" pos="-0.035 0 0.120" zaxis="-0.34202014 0.93969262 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_023" pos="-0.035 0 0.120" zaxis="-0.42261826 0.90630779 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_024" pos="-0.035 0 0.120" zaxis="-0.50000000 0.86602540 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_025" pos="-0.035 0 0.120" zaxis="-0.57357644 0.81915204 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_026" pos="-0.035 0 0.120" zaxis="-0.64278761 0.76604444 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_027" pos="-0.035 0 0.120" zaxis="-0.70710678 0.70710678 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_028" pos="-0.035 0 0.120" zaxis="-0.76604444 0.64278761 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_029" pos="-0.035 0 0.120" zaxis="-0.81915204 0.57357644 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_030" pos="-0.035 0 0.120" zaxis="-0.86602540 0.50000000 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_031" pos="-0.035 0 0.120" zaxis="-0.90630779 0.42261826 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_032" pos="-0.035 0 0.120" zaxis="-0.93969262 0.34202014 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_033" pos="-0.035 0 0.120" zaxis="-0.96592583 0.25881905 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_034" pos="-0.035 0 0.120" zaxis="-0.98480775 0.17364818 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_035" pos="-0.035 0 0.120" zaxis="-0.99619470 0.08715574 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_036" pos="-0.035 0 0.120" zaxis="-1.00000000 0.00000000 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_037" pos="-0.035 0 0.120" zaxis="-0.99619470 -0.08715574 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_038" pos="-0.035 0 0.120" zaxis="-0.98480775 -0.17364818 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_039" pos="-0.035 0 0.120" zaxis="-0.96592583 -0.25881905 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_040" pos="-0.035 0 0.120" zaxis="-0.93969262 -0.34202014 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_041" pos="-0.035 0 0.120" zaxis="-0.90630779 -0.42261826 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_042" pos="-0.035 0 0.120" zaxis="-0.86602540 -0.50000000 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_043" pos="-0.035 0 0.120" zaxis="-0.81915204 -0.57357644 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_044" pos="-0.035 0 0.120" zaxis="-0.76604444 -0.64278761 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_045" pos="-0.035 0 0.120" zaxis="-0.70710678 -0.70710678 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_046" pos="-0.035 0 0.120" zaxis="-0.64278761 -0.76604444 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_047" pos="-0.035 0 0.120" zaxis="-0.57357644 -0.81915204 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_048" pos="-0.035 0 0.120" zaxis="-0.50000000 -0.86602540 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_049" pos="-0.035 0 0.120" zaxis="-0.42261826 -0.90630779 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_050" pos="-0.035 0 0.120" zaxis="-0.34202014 -0.93969262 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_051" pos="-0.035 0 0.120" zaxis="-0.25881905 -0.96592583 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_052" pos="-0.035 0 0.120" zaxis="-0.17364818 -0.98480775 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_053" pos="-0.035 0 0.120" zaxis="-0.08715574 -0.99619470 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_054" pos="-0.035 0 0.120" zaxis="-0.00000000 -1.00000000 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_055" pos="-0.035 0 0.120" zaxis="0.08715574 -0.99619470 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_056" pos="-0.035 0 0.120" zaxis="0.17364818 -0.98480775 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_057" pos="-0.035 0 0.120" zaxis="0.25881905 -0.96592583 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_058" pos="-0.035 0 0.120" zaxis="0.34202014 -0.93969262 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_059" pos="-0.035 0 0.120" zaxis="0.42261826 -0.90630779 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_060" pos="-0.035 0 0.120" zaxis="0.50000000 -0.86602540 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_061" pos="-0.035 0 0.120" zaxis="0.57357644 -0.81915204 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_062" pos="-0.035 0 0.120" zaxis="0.64278761 -0.76604444 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_063" pos="-0.035 0 0.120" zaxis="0.70710678 -0.70710678 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_064" pos="-0.035 0 0.120" zaxis="0.76604444 -0.64278761 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_065" pos="-0.035 0 0.120" zaxis="0.81915204 -0.57357644 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_066" pos="-0.035 0 0.120" zaxis="0.86602540 -0.50000000 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_067" pos="-0.035 0 0.120" zaxis="0.90630779 -0.42261826 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_068" pos="-0.035 0 0.120" zaxis="0.93969262 -0.34202014 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_069" pos="-0.035 0 0.120" zaxis="0.96592583 -0.25881905 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_070" pos="-0.035 0 0.120" zaxis="0.98480775 -0.17364818 0" size="0.001" rgba="0 0 0 0"/>
+      <site name="ray_071" pos="-0.035 0 0.120" zaxis="0.99619470 -0.08715574 0" size="0.001" rgba="0 0 0 0"/>
+      <body name="wheel_left" pos="0 0.144 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326" mass="0.0284989" diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="wheel_left" class="wheel_left"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="left_tire" material="grey" class="visual"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="left_tire" class="collision"/>
+      </body>
+      <body name="wheel_right" pos="0 -0.144 0.033" quat="0.707388 -0.706825 0 0">
+        <inertial pos="0 0 0" quat="-0.000890159 0.706886 0.000889646 0.707326" mass="0.0284989" diaginertia="2.07126e-05 1.11924e-05 1.11756e-05"/>
+        <joint name="wheel_right" class="wheel_right"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="right_tire" material="grey" class="visual"/>
+        <geom quat="0.707388 0.706825 0 0" mesh="right_tire" class="collision"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <velocity class="wheel_left" name="wheel_left" joint="wheel_left"/>
+    <velocity class="wheel_right" name="wheel_right" joint="wheel_right"/>
+  </actuator>
+
+  <!-- TRACK A: proprioceptive and LiDAR sensors -->
+  <sensor>
+    <jointpos name="encoder_left" joint="wheel_left"/>
+    <jointpos name="encoder_right" joint="wheel_right"/>
+    <jointvel name="speed_left" joint="wheel_left"/>
+    <jointvel name="speed_right" joint="wheel_right"/>
+    <rangefinder name="lidar_000" site="ray_000"/>
+    <rangefinder name="lidar_001" site="ray_001"/>
+    <rangefinder name="lidar_002" site="ray_002"/>
+    <rangefinder name="lidar_003" site="ray_003"/>
+    <rangefinder name="lidar_004" site="ray_004"/>
+    <rangefinder name="lidar_005" site="ray_005"/>
+    <rangefinder name="lidar_006" site="ray_006"/>
+    <rangefinder name="lidar_007" site="ray_007"/>
+    <rangefinder name="lidar_008" site="ray_008"/>
+    <rangefinder name="lidar_009" site="ray_009"/>
+    <rangefinder name="lidar_010" site="ray_010"/>
+    <rangefinder name="lidar_011" site="ray_011"/>
+    <rangefinder name="lidar_012" site="ray_012"/>
+    <rangefinder name="lidar_013" site="ray_013"/>
+    <rangefinder name="lidar_014" site="ray_014"/>
+    <rangefinder name="lidar_015" site="ray_015"/>
+    <rangefinder name="lidar_016" site="ray_016"/>
+    <rangefinder name="lidar_017" site="ray_017"/>
+    <rangefinder name="lidar_018" site="ray_018"/>
+    <rangefinder name="lidar_019" site="ray_019"/>
+    <rangefinder name="lidar_020" site="ray_020"/>
+    <rangefinder name="lidar_021" site="ray_021"/>
+    <rangefinder name="lidar_022" site="ray_022"/>
+    <rangefinder name="lidar_023" site="ray_023"/>
+    <rangefinder name="lidar_024" site="ray_024"/>
+    <rangefinder name="lidar_025" site="ray_025"/>
+    <rangefinder name="lidar_026" site="ray_026"/>
+    <rangefinder name="lidar_027" site="ray_027"/>
+    <rangefinder name="lidar_028" site="ray_028"/>
+    <rangefinder name="lidar_029" site="ray_029"/>
+    <rangefinder name="lidar_030" site="ray_030"/>
+    <rangefinder name="lidar_031" site="ray_031"/>
+    <rangefinder name="lidar_032" site="ray_032"/>
+    <rangefinder name="lidar_033" site="ray_033"/>
+    <rangefinder name="lidar_034" site="ray_034"/>
+    <rangefinder name="lidar_035" site="ray_035"/>
+    <rangefinder name="lidar_036" site="ray_036"/>
+    <rangefinder name="lidar_037" site="ray_037"/>
+    <rangefinder name="lidar_038" site="ray_038"/>
+    <rangefinder name="lidar_039" site="ray_039"/>
+    <rangefinder name="lidar_040" site="ray_040"/>
+    <rangefinder name="lidar_041" site="ray_041"/>
+    <rangefinder name="lidar_042" site="ray_042"/>
+    <rangefinder name="lidar_043" site="ray_043"/>
+    <rangefinder name="lidar_044" site="ray_044"/>
+    <rangefinder name="lidar_045" site="ray_045"/>
+    <rangefinder name="lidar_046" site="ray_046"/>
+    <rangefinder name="lidar_047" site="ray_047"/>
+    <rangefinder name="lidar_048" site="ray_048"/>
+    <rangefinder name="lidar_049" site="ray_049"/>
+    <rangefinder name="lidar_050" site="ray_050"/>
+    <rangefinder name="lidar_051" site="ray_051"/>
+    <rangefinder name="lidar_052" site="ray_052"/>
+    <rangefinder name="lidar_053" site="ray_053"/>
+    <rangefinder name="lidar_054" site="ray_054"/>
+    <rangefinder name="lidar_055" site="ray_055"/>
+    <rangefinder name="lidar_056" site="ray_056"/>
+    <rangefinder name="lidar_057" site="ray_057"/>
+    <rangefinder name="lidar_058" site="ray_058"/>
+    <rangefinder name="lidar_059" site="ray_059"/>
+    <rangefinder name="lidar_060" site="ray_060"/>
+    <rangefinder name="lidar_061" site="ray_061"/>
+    <rangefinder name="lidar_062" site="ray_062"/>
+    <rangefinder name="lidar_063" site="ray_063"/>
+    <rangefinder name="lidar_064" site="ray_064"/>
+    <rangefinder name="lidar_065" site="ray_065"/>
+    <rangefinder name="lidar_066" site="ray_066"/>
+    <rangefinder name="lidar_067" site="ray_067"/>
+    <rangefinder name="lidar_068" site="ray_068"/>
+    <rangefinder name="lidar_069" site="ray_069"/>
+    <rangefinder name="lidar_070" site="ray_070"/>
+    <rangefinder name="lidar_071" site="ray_071"/>
+  </sensor>
+
+  <contact>
+    <exclude body1="base" body2="wheel_left"/>
+    <exclude body1="base" body2="wheel_right"/>
+  </contact>
+</mujoco>

@@ -1,0 +1,5 @@
+mujoco>=3.3.7
+numpy
+opencv-contrib-python>=4.7
+scipy
+matplotlib

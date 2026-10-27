@@ -1,0 +1,93 @@
+[  1/80] nominal    # 2 OK    25.3s dock   0.59 cm max EKF err  10.8 cm  
+[  2/80] nominal    # 0 OK    26.4s dock   0.59 cm max EKF err   7.9 cm  
+[  3/80] nominal    # 3 OK    29.7s dock   0.48 cm max EKF err   5.5 cm  
+[  4/80] nominal    # 1 OK    33.9s dock   0.50 cm max EKF err   7.7 cm  
+[  5/80] nominal    # 5 OK    29.9s dock   0.52 cm max EKF err   7.3 cm  
+[  6/80] nominal    # 4 OK    31.7s dock   0.21 cm max EKF err   8.1 cm  
+[  7/80] nominal    # 6 OK    32.7s dock   0.58 cm max EKF err  11.3 cm  
+[  8/80] nominal    # 7 OK    33.8s dock   0.48 cm max EKF err  11.0 cm  
+[  9/80] nominal    # 8 OK    25.7s dock   0.63 cm max EKF err   8.3 cm  
+[ 10/80] nominal    # 9 OK    27.2s dock   0.69 cm max EKF err   7.3 cm  
+[ 11/80] push       # 0 OK    27.2s dock   0.61 cm max EKF err   6.7 cm  
+[ 12/80] push       # 1 OK    38.4s dock   0.56 cm max EKF err  22.5 cm  
+[ 13/80] push       # 2 OK    24.9s dock   0.58 cm max EKF err   8.7 cm  
+[ 14/80] push       # 3 OK    26.3s dock   0.40 cm max EKF err   7.7 cm  
+[ 15/80] push       # 4 OK    31.7s dock   0.25 cm max EKF err  10.7 cm  
+[ 16/80] push       # 5 OK    29.9s dock   0.57 cm max EKF err   2.1 cm  
+[ 17/80] push       # 6 OK    34.3s dock   0.50 cm max EKF err   7.6 cm  
+[ 18/80] push       # 7 OK    33.6s dock   0.51 cm max EKF err   6.0 cm  
+[ 19/80] push       # 8 OK    26.4s dock   0.59 cm max EKF err   2.0 cm  
+[ 20/80] push       # 9 OK    29.2s dock   0.63 cm max EKF err   8.7 cm  
+[ 21/80] slip       # 0 OK    26.7s dock   0.61 cm max EKF err   5.5 cm  
+[ 22/80] slip       # 2 OK    26.1s dock   0.60 cm max EKF err   8.2 cm  
+[ 23/80] slip       # 1 OK    35.3s dock   0.49 cm max EKF err   3.4 cm  
+[ 24/80] slip       # 3 OK    26.1s dock   0.35 cm max EKF err   9.2 cm  
+[ 25/80] slip       # 4 OK    33.2s dock   0.24 cm max EKF err   8.3 cm  
+[ 26/80] slip       # 5 OK    29.4s dock   0.58 cm max EKF err   5.8 cm  
+[ 27/80] slip       # 6 OK    32.1s dock   0.54 cm max EKF err  12.2 cm  
+[ 28/80] slip       # 7 OK    33.6s dock   0.55 cm max EKF err   4.8 cm  
+[ 29/80] slip       # 8 OK    25.2s dock   0.60 cm max EKF err  12.8 cm  
+[ 30/80] slip       # 9 OK    30.4s dock   0.65 cm max EKF err  11.0 cm  
+[ 31/80] occlusion  # 0 OK    26.4s dock   0.67 cm max EKF err   7.7 cm  
+[ 32/80] occlusion  # 2 OK    25.3s dock   0.64 cm max EKF err   4.0 cm  
+[ 33/80] occlusion  # 3 OK    26.3s dock   0.41 cm max EKF err   5.1 cm  
+[ 34/80] occlusion  # 1 OK    35.9s dock   0.52 cm max EKF err  14.8 cm  
+[ 35/80] occlusion  # 4 OK    32.4s dock   0.60 cm max EKF err   8.4 cm  
+[ 36/80] occlusion  # 5 OK    30.2s dock   0.55 cm max EKF err   7.8 cm  
+[ 37/80] occlusion  # 6 OK    32.7s dock   0.65 cm max EKF err  30.3 cm  
+[ 38/80] occlusion  # 7 OK    33.9s dock   0.52 cm max EKF err   6.6 cm  
+[ 39/80] occlusion  # 8 OK    25.2s dock   0.55 cm max EKF err   7.2 cm  
+[ 40/80] occlusion  # 9 OK    26.1s dock   0.99 cm max EKF err  12.8 cm  
+[ 41/80] latency    # 0 OK    25.3s dock   0.61 cm max EKF err   9.9 cm  
+[ 42/80] latency    # 2 OK    24.8s dock   0.58 cm max EKF err  13.0 cm  
+[ 43/80] latency    # 1 OK    34.5s dock   0.49 cm max EKF err   8.3 cm  
+[ 44/80] latency    # 3 OK    27.3s dock   0.38 cm max EKF err   7.2 cm  
+[ 45/80] latency    # 5 OK    29.4s dock   0.60 cm max EKF err   9.7 cm  
+[ 46/80] latency    # 4 OK    44.0s dock   0.64 cm max EKF err  35.2 cm  
+[ 47/80] latency    # 6 OK    32.8s dock   0.58 cm max EKF err   6.4 cm  
+[ 48/80] latency    # 7 OK    33.6s dock   0.58 cm max EKF err  12.7 cm  
+[ 49/80] latency    # 8 OK    26.4s dock   0.60 cm max EKF err   3.7 cm  
+[ 50/80] latency_nocomp # 0 OK    25.1s dock   1.24 cm max EKF err  11.3 cm  
+[ 51/80] latency    # 9 OK    29.3s dock   0.61 cm max EKF err   9.7 cm  
+[ 52/80] latency_nocomp # 2 OK    24.0s dock   0.32 cm max EKF err   5.4 cm  
+[ 53/80] latency_nocomp # 1 OK    33.0s dock   0.43 cm max EKF err  13.6 cm  
+[ 54/80] latency_nocomp # 3 OK    29.5s dock   0.19 cm max EKF err  10.8 cm  
+[ 55/80] latency_nocomp # 4 OK    31.1s dock   0.35 cm max EKF err   6.9 cm  
+[ 56/80] latency_nocomp # 5 OK    28.4s dock   0.48 cm max EKF err   4.1 cm  
+[ 57/80] latency_nocomp # 6 OK    31.2s dock   0.40 cm max EKF err  11.6 cm  
+[ 58/80] latency_nocomp # 8 OK    25.8s dock   1.13 cm max EKF err   5.5 cm  
+[ 59/80] latency_nocomp # 7 OK    31.9s dock   0.34 cm max EKF err   7.5 cm  
+[ 60/80] latency_nocomp # 9 OK    29.8s dock   1.23 cm max EKF err  14.5 cm  
+[ 61/80] noise_x2   # 0 OK    25.8s dock   0.63 cm max EKF err   4.3 cm  
+[ 62/80] noise_x2   # 2 OK    25.3s dock   0.58 cm max EKF err   5.2 cm  
+[ 63/80] noise_x2   # 1 OK    34.7s dock   0.45 cm max EKF err  16.0 cm  
+[ 64/80] noise_x2   # 3 OK    28.4s dock   0.50 cm max EKF err   7.7 cm  
+[ 65/80] noise_x2   # 4 OK    31.7s dock   0.32 cm max EKF err   7.3 cm  
+[ 66/80] noise_x2   # 5 OK    30.4s dock   0.62 cm max EKF err   9.7 cm  
+[ 67/80] noise_x2   # 6 OK    33.2s dock   0.58 cm max EKF err  13.6 cm  
+[ 68/80] noise_x2   # 8 OK    26.1s dock   0.62 cm max EKF err  11.4 cm  
+[ 69/80] noise_x2   # 7 OK    32.9s dock   0.63 cm max EKF err  11.3 cm  
+[ 70/80] noise_x2   # 9 OK    29.2s dock   0.63 cm max EKF err  11.8 cm  
+[ 71/80] combined   # 0 OK    25.8s dock   0.77 cm max EKF err   4.6 cm  
+[ 72/80] combined   # 2 OK    25.6s dock   0.68 cm max EKF err  11.2 cm  
+[ 73/80] combined   # 1 OK    33.7s dock   0.47 cm max EKF err  11.0 cm  
+[ 74/80] combined   # 3 OK    27.4s dock   0.41 cm max EKF err   6.3 cm  
+[ 75/80] combined   # 4 OK    31.4s dock   0.15 cm max EKF err   9.0 cm  
+[ 76/80] combined   # 5 OK    29.1s dock   0.61 cm max EKF err   7.2 cm  
+[ 77/80] combined   # 6 OK    34.7s dock   0.42 cm max EKF err  14.0 cm  
+[ 78/80] combined   # 7 OK    32.9s dock   0.64 cm max EKF err  18.6 cm  
+[ 79/80] combined   # 8 OK    25.3s dock   0.70 cm max EKF err  10.2 cm  
+[ 80/80] combined   # 9 OK    29.3s dock   0.86 cm max EKF err   5.6 cm  
+
+condition   success   dock err mean/max (cm)  max EKF err median (cm)  time (s)  replans
+nominal     10/10           0.53 / 0.69                      8.0         29.6        0
+push        10/10           0.52 / 0.63                      7.6         30.2        0
+slip        10/10           0.52 / 0.65                      8.2         29.8        0
+occlusion   10/10           0.61 / 0.99                      7.8         29.5        0
+latency     10/10           0.57 / 0.64                      9.7         30.7        0
+latency_nocomp  10/10           0.61 / 1.24                      9.1         29.0        0
+noise_x2    10/10           0.56 / 0.63                     10.5         29.8        0
+combined    10/10           0.57 / 0.86                      9.6         29.5        0
+
+Failures (0):
+done in 426 s; wrote C:\Users\rudra\OneDrive\Documents\.Sensors and control\06_robustness_trials\results

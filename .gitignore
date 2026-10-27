@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+MUJOCO_LOG.TXT
+~$*
+
+# course material: keep local, not in the public repo
+docs/Sensors_Control_Integrated_Project v2.pdf

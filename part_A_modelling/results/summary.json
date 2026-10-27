@@ -1,0 +1,54 @@
+{
+  "model": {
+    "controllability_rank": {
+      "v=0.15,w=0.0": 3,
+      "v=0.15,w=0.5": 3,
+      "v=0.0,w=0.5": 3,
+      "v=0.0,w=0.0": 2
+    },
+    "observability": {
+      "odometry only, moving": {
+        "rank": 0,
+        "condition": Infinity
+      },
+      "range+bearing, stationary": {
+        "rank": 2,
+        "condition": Infinity
+      },
+      "range+bearing, moving": {
+        "rank": 2,
+        "condition": Infinity
+      },
+      "range only, moving": {
+        "rank": 2,
+        "condition": Infinity
+      },
+      "bearing only, moving": {
+        "rank": 2,
+        "condition": Infinity
+      },
+      "range+bearing+marker yaw, stationary": {
+        "rank": 3,
+        "condition": 2.7809984764262397
+      }
+    }
+  },
+  "actuator": {
+    "gain": 0.9831031147859356,
+    "tau_s": 0.014
+  },
+  "odometry": {
+    "ideal encoders": {
+      "distance_m": 7.317976228167273,
+      "final_pos_err_m": 0.025303936788892072,
+      "final_yaw_err_deg": 0.10162976544460216,
+      "drift_pct_of_distance": 0.34577779429640526
+    },
+    "noisy encoders": {
+      "distance_m": 7.317976228167273,
+      "final_pos_err_m": 0.025121441414531726,
+      "final_yaw_err_deg": 0.08148816388075254,
+      "drift_pct_of_distance": 0.3432839986257127
+    }
+  }
+}
