@@ -1,16 +1,10 @@
-"""Phase 4: closed-loop navigation to the pre-dock point, around obstacles, on the EKF estimate.
+"""Tests mapping, path planning and the LQR controller (Part D).
 
-Uses the shared mission state machine (src/mission.py) with docking switched off.
-Pipeline every 20 ms tick (everything the controller sees comes from src/, never ground truth):
-    encoders -> EKF predict            camera (10 Hz) -> marker -> EKF update (5 Hz)
-    LiDAR (5 Hz) -> occupancy grid at the EKF pose -> A* plan / replan -> timed reference
-    reference + EKF pose -> LQR -> wheel speeds
-States: ALIGN (turn on the spot to the path heading), TRACK (LQR), FINAL_ALIGN (turn to face the
-marker), DONE. Ground truth (eval/ground_truth.py) only scores the run and detects collisions.
-
-Run from the project root:
-    python part_D_control/run_navigation.py           # scenarios x seeds + LQR weight study
-    python part_D_control/run_navigation.py --quick   # one run per scenario
+The robot starts from 3 different places, maps the room with its LiDAR, plans a path around the
+obstacles with A* and follows it with the LQR to a point in front of the dock (no docking here).
+Each start is run 3 times, then the LQR is tried with different weights to show the trade-off
+between control effort and tracking error.
+Saves plots and results/summary.json. Takes about 4 min. Press Run (add --quick for 1 run each).
 """
 from pathlib import Path
 import argparse
@@ -133,6 +127,7 @@ def plot_run(name, start, log, grid, plans, e_true, path):
 
 
 def main():
+    print('Testing navigation from 3 starts x 3 seeds plus the LQR study, about 4 min (no window)...', flush=True)
     ap = argparse.ArgumentParser()
     ap.add_argument('--quick', action='store_true')
     ap.add_argument('--seeds', type=int, default=3)

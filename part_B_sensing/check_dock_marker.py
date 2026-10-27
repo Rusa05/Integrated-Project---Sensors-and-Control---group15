@@ -1,13 +1,8 @@
-"""Part B, step B2: check that the robot's camera detects the dock tags correctly.
+"""Quick test that the robot's camera can see the dock tags (Part B).
 
-Places the robot at known poses (ground truth is used here only to set up the test and to score
-the result), renders front_camera, detects the tags with the robot's own vision code (calibrated
-camera, src/vision.py) and compares range and bearing with the true geometry:
-
-  poses 0-2   the 10 cm dock tag (id 0) on the approach, straight on and off-angle
-  pose 3      the docked pose: both 3 cm dock tags (ids 7, 8) must be in view
-
-Saves the renders to results/marker_check_*.png. Prints PASS/FAIL.
+Puts the robot at 4 spots near the dock, takes a camera image, finds the tags and compares the
+measured distance and angle with the true values. Prints PASS or FAIL and saves the camera
+images to results/. Press Run.
 """
 from pathlib import Path
 import math

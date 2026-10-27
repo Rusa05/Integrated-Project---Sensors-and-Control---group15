@@ -1,20 +1,11 @@
-"""Mission state machine: navigate to the pre-dock pose, then dock on the charging pad.
+"""The robot's step-by-step plan for the whole mission (Part E).
 
-    ALIGN ──► TRACK ──► FINAL_ALIGN ──► DOCK ──► DOCKED
-      ▲         │  (path blocked / obstacle ahead: replan)
-      └─────────┘
-
-ALIGN        turn on the spot to the path heading (the tracker is not controllable at v = 0)
-TRACK        LQR on the A* reference, LiDAR safety stop and replanning
-FINAL_ALIGN  turn to face the dock at the pre-dock pose (0.6 m out, dock tags well in view)
-DOCK         slow curved reference onto the pad (ends along the dock axis), tracked by the same
-             LQR. The two small dock tags stay in view right down to the docked pose, so the
-             camera corrects the EKF the whole way in. A LiDAR check stops the robot if the
-             backplate is closer than expected.
-DOCKED / DONE
-
-Inputs are only sensor data (encoder increments, tag measurements, LiDAR scans); the pose
-used everywhere is the EKF estimate.
+  ALIGN        turn to face the start of the path
+  TRACK        follow the A* path with the LQR (replans if something blocks it)
+  FINAL_ALIGN  turn to face the dock
+  DOCK         drive slowly onto the charging pad
+  DOCKED       done
+Called every 20 ms with the latest sensor data, and only ever uses the EKF estimate.
 """
 import math
 import numpy as np

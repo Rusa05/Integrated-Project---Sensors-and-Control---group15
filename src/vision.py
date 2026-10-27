@@ -1,19 +1,8 @@
-"""ArUco measurement: image -> range, bearing and relative heading of each known tag, in base_link.
+"""Finds the ArUco tags in a camera image and measures where they are (Part B).
 
-Frame chain (all rotations are fixed by the robot's build, not by its pose):
-
-  tag      ArUco frame from solvePnP: x right, y up, z out of the tag face.
-  optical  OpenCV camera frame: x right, y down, z forward (the viewing direction).
-  camera   MuJoCo camera frame: x right, y up, z backward (camera looks along -z).
-           optical = camera rotated 180 deg about x, i.e. R_cam_opt = diag(1, -1, -1).
-  base     base_link: x forward, y left, z up, origin at the wheel-axle centre.
-           The camera pose in base comes from the camera mount in the robot model
-           (model.cam_pos / cam_quat are body-relative extrinsics, not the robot pose).
-  map      world frame. Each tag's map pose is in the known map, src/config.py TAGS.
-
-IPPE ambiguity: a square seen nearly head-on has two pose solutions that fit the image almost
-equally well (they differ mainly in the tag's apparent tilt, so in the relative yaw). Both are
-returned; the EKF keeps the one that agrees with its prior (src/ekf.py).
+For each known tag: find its corners, solve for its pose (solvePnP), convert from the camera frame
+to the robot frame, and return range, bearing and the tag's yaw. Keeps both possible pose
+solutions so the EKF can pick the one that makes sense.
 """
 from dataclasses import dataclass
 import math

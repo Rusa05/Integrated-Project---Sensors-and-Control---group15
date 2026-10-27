@@ -1,10 +1,8 @@
-"""Part B, step B1: generate the ArUco tag textures and check the scene matches the tag map.
+"""Makes the ArUco tag pictures used in the simulation (Part B).
 
-    python part_B_sensing/make_aruco.py
-
-For every tag in src/config.py TAGS this writes turtlebot3/assets/aruco_<id>.png (black square of
-the tag's size plus a white quiet zone of TAG_BORDER_FRAC * size on each side), then loads the
-scene and checks that each tag's site ('tag_<id>') sits where the map says, facing the right way.
+Creates one image per tag listed in src/config.py, saves them to turtlebot3/assets/, then checks
+that the tags in scene.xml are where config.py says they are.
+Only needed if you change a tag. Press Run.
 """
 from pathlib import Path
 import math

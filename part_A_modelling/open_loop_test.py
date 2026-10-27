@@ -1,15 +1,8 @@
-"""Track A milestone 1: an open-loop TurtleBot3 movement check.
+"""Simple movement test: drive forward, turn left, drive forward again, stop.
 
-Adapted from the simulation loop in the supplied move_ur3e.py tutorial.
-Robot model: https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie
-
-Originally simulate_turtlebot.py in the group15 GitHub repo; now loads the Track A room
-(turtlebot3/scene.xml, official Waffle Pi model plus Track A sensors).
-Windows/Linux:  python part_A_modelling/open_loop_test.py
-macOS:          mjpython part_A_modelling/open_loop_test.py
-
-This is a model/actuator check, not the assignment's feedback controller.
-It has no EKF, camera processing, LiDAR processing or autonomous navigation.
+No sensors or feedback, just fixed wheel speeds, to check the robot model moves properly.
+Press Run to watch it, or add --headless to run it without a window.
+Based on the movement test in our group repo (loop adapted from the UR3 tutorial).
 """
 
 import argparse

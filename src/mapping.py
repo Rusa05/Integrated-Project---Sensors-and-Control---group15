@@ -1,13 +1,7 @@
-"""LiDAR occupancy grid built from the EKF pose (Part D, sensing for planning).
+"""Builds a map of the obstacles from the LiDAR (Part D).
 
-Frames: each beam is measured in the LiDAR frame (LDS-01 turret, LIDAR_OFFSET ahead of the
-wheel axle in base_link), rotated by the estimated heading and translated by the estimated
-position into the map frame. Cells along a beam are marked free and the cell at its end
-occupied, in log-odds so that single noisy or dropped beams do not flip a cell.
-
-The grid knows nothing in advance: walls, obstacles and the charging station all come from
-the LiDAR. Unknown cells are treated as free by the planner (optimistic), and the mission
-replans when new obstacles appear on the path.
+Each scan is placed on a 5 cm grid using the EKF position: cells a beam passes through count as
+free, the cell where it hits something counts as occupied.
 """
 import math
 import numpy as np

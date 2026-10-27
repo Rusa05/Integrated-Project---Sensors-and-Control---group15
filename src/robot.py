@@ -1,7 +1,7 @@
-"""The robot's hardware interface in simulation: sensors at their real rates in, wheel speeds out.
+"""The robot's "hardware" in the simulation: reads the sensors and drives the wheels.
 
-Everything here is something the real TurtleBot3 would provide (encoders every tick, LiDAR at
-5 Hz, camera frames at 10 Hz with on-board marker detection). It never reads the base pose.
+Encoders every 20 ms, LiDAR every 0.2 s, camera every 0.1 s. It never looks at the true position.
+It can also fake camera problems (blinded camera, delay) for the robustness tests.
 """
 import mujoco
 

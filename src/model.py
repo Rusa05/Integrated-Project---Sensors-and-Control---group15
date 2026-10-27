@@ -1,15 +1,9 @@
-"""State-space model of the TurtleBot3 Waffle Pi differential-drive robot (Part A).
+"""The robot's maths model (Part A).
 
-State   x = [x, y, theta]   pose of base_link (wheel-axle centre) in the world/map frame
-Input   u = [v, omega]      body forward speed (m/s) and yaw rate (rad/s)
-
-Assumptions (checked in part_A_modelling/model_analysis.py):
-  * planar motion on a flat floor, rigid body, no lateral wheel slip (non-holonomic);
-  * wheel motors track their speed command fast enough to ignore: the measured
-    wheel step response time constant is ~12 ms against a 20 ms control period,
-    so actuator dynamics are dropped and the model is kinematic. The ~4 % steady-state
-    speed shortfall is left to feedback; odometry measures the actual wheel motion;
-  * wheel radius and track are the nominal values below.
+Unicycle model: x' = v cos(theta), y' = v sin(theta), theta' = omega. Everything else is built on
+it: wheel speeds <-> body speeds, the 50 Hz discrete model and its Jacobians (for the EKF), the
+tracking-error model (for the LQR), the tag measurement model, and the rank checks.
+Assumes a flat floor, no sideways slip, and ignores motor lag (all checked in part_A_modelling).
 """
 import math
 import numpy as np

@@ -1,17 +1,11 @@
-"""Part E, step E1: the full Track A mission, start -> navigate around obstacles -> dock on the pad.
+"""The full Track A mission: drive across the room, avoid the obstacles, dock (Part E).
 
-Modes (run from the project root, or just press Run in VS Code; on macOS use mjpython):
-    python part_E_integration_and_robustness/run_mission.py                   # one run, live MuJoCo viewer
-    python part_E_integration_and_robustness/run_mission.py --record run.mp4  # one run, saved as a video
-    python part_E_integration_and_robustness/run_mission.py --batch           # scenarios x seeds, headless
-    add --scenario B_box_in_way / --seed 2 to choose the run; --start x y theta for any start pose
-
-Overlays (viewer and video): blue arrow = EKF estimate, blue ellipse = its 3-sigma position
-uncertainty, orange dots = current plan, blue/black trails = estimated/true path. The video also
-shows the robot's camera with the detected tags outlined, and the estimate-vs-truth error.
-
-The robot runs entirely on src/ (sensors -> EKF -> planner -> LQR). Ground truth is read only in
-this file through eval/ground_truth.py, to score the run and draw the true trail.
+Press Run to watch one mission in the MuJoCo viewer (it closes itself after docking).
+Other options:
+  --record run.mp4    save the run as a video with the EKF estimate drawn on it
+  --batch             run all 3 start positions x 3 seeds without a window and save the results
+  --scenario B_box_in_way or C_far_corner, --seed N, --start X Y THETA
+On a Mac use mjpython instead of python for the viewer.
 """
 from pathlib import Path
 import argparse

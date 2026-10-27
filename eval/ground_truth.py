@@ -1,6 +1,6 @@
-"""The ONLY place that reads the simulator's true robot pose.
+"""Reads the robot's TRUE position from the simulator.
 
-Used for setting up test poses and scoring results. Nothing under src/ may import this.
+Only used to set up tests and to score the results. The robot's own code (src/) never uses this.
 """
 import math
 import mujoco

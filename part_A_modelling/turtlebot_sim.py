@@ -1,4 +1,10 @@
-"""Manual keyboard driving of the TurtleBot3 Waffle Pi in the Track A room; not an autonomous controller."""
+"""Drive the TurtleBot yourself with the keyboard.
+
+Press Run, click on the MuJoCo window, then use:
+  W / S  forward / back      A / D  turn left / right      Space  stop
+  R  reset                   C  robot camera view          L  show LiDAR rays
+Prints the nearest LiDAR distance and the wheel speeds every 2 s.
+"""
 from pathlib import Path
 import math
 import threading

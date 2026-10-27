@@ -1,8 +1,7 @@
-"""Known map information shared by estimator and controller (the 'map' the robot is given).
+"""The map the robot is given: where the ArUco tags are, the camera calibration and the dock.
 
-The robot knows where the ArUco tags are (a printed, surveyed map), but NOT where the obstacles
-are: those it maps with its LiDAR. turtlebot3/scene.xml must match TAGS; part_B_sensing/make_aruco.py
-generates the tag textures from this table and checks the scene against it.
+The robot knows where the tags are, but NOT where the obstacles are (it finds those with the
+LiDAR). turtlebot3/scene.xml has to match the tag list here (part_B_sensing/make_aruco.py checks).
 """
 from dataclasses import dataclass
 import math

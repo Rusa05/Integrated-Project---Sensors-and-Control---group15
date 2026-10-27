@@ -1,9 +1,7 @@
-"""Part B (frames): the frame diagram for the project page.
+"""Draws the frame diagram for the README (Part B).
 
-    python part_B_sensing/frame_diagram.py      ->  part_B_sensing/results/frame_diagram.png
-
-All offsets are read from the code/model (src/config.py, src/mapping.py, the robot MJCF), so the
-diagram stays in step with what the robot actually uses.
+Shows the map, robot, LiDAR, camera and tag frames, and how a camera measurement turns into
+something the EKF can use. Saves results/frame_diagram.png. Press Run.
 """
 from pathlib import Path
 import math

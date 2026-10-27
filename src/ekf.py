@@ -1,41 +1,9 @@
-"""Extended Kalman filter for the robot pose [x, y, theta] (Part C).
+"""The EKF that estimates where the robot is: x, y and heading (Part C).
 
-Predict  every control tick (50 Hz) from wheel-encoder increments.
-Update   for every known ArUco tag the camera sees (frames at up to 5 Hz), with
-         z = [range, bearing, tag yaw relative to the robot] (a relative pose measurement).
-
-Why a pose measurement: with range + bearing to a single tag the pose is not observable
-(rank 2, see part_A_modelling); the tag's yaw supplies the missing direction. With two or more
-tags in view, range + bearing alone is enough (rank 3), which the measurement ablation in
-part_C_estimation tests.
-
-Tags of different sizes share one noise model by pinhole similarity: a tag k times bigger looks,
-at k times the range, exactly like the reference 10 cm tag, so sigma_s(r) = k * sigma_ref(r / k)
-and its usable range is k times longer (15 cm wall tags: 3 m; 3 cm dock tags: 0.6 m).
-
-Noise values and where they come from
--------------------------------------
-Process noise Q is built from the wheels, not tuned on x/y/theta directly. Each wheel's
-angle increment over one tick has variance
-    sigma_phi^2 = (SLIP_FRAC * |dphi|)^2 + SIGMA_PHI_MIN^2
-  * SLIP_FRAC    unmodelled slip/scrub as a fraction of wheel travel: the error that really
-                 accumulates. Part A measured 0.35 % position drift over 7.3 m.
-  * SIGMA_PHI_MIN a tiny floor so Q is never singular at standstill.
-Encoder quantisation (4096 ticks/rev) and per-reading jitter are deliberately NOT in Q: they are
-errors on the *absolute* wheel angle, so successive increments cancel (the sum telescopes) and
-they do not grow with distance. Putting them in Q at 50 Hz made the filter far too pessimistic
-when driving blind (NEES well below its bounds); see part_C_estimation/README.md.
-Q = G_w diag(sigma_phi_L^2, sigma_phi_R^2) G_w^T with G_w = d f / d(dphi_L, dphi_R).
-
-Measurement noise R uses the power laws fitted in part_B_sensing/results/summary.json,
-sigma(r) = a * r^p, with floors (2 cm range, 0.5 deg bearing, 2 deg yaw). The fits see only
-frame-to-frame pixel noise, but the camera's real error is mostly a small systematic offset that
-depends on the viewpoint and repeats in consecutive frames (~0.5 cm in range at 1 m). Fusing it as
-if it were independent made the filter over-confident (NEES up to ~18). Two measures, chosen with
-the NEES/NIS study in part_C_estimation:
-  * floors on R sized to that systematic error, and
-  * at most 5 camera frames per second (MIN_UPDATE_DT), so near-identical frames are not
-    counted as independent evidence.
+  predict: moves the estimate forward using the wheel encoders (every 20 ms)
+  update:  corrects it using each ArUco tag the camera sees (range, bearing and tag yaw)
+It also handles camera delay, rejects bad readings, and recovers if it keeps rejecting them.
+How the noise values below were chosen is explained in part_C_estimation/README.md.
 """
 from collections import deque
 from dataclasses import dataclass, field

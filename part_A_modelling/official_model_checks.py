@@ -1,10 +1,9 @@
-"""Why turtlebot3_waffle_pi_track_a.xml differs from the official ROBOTIS Waffle Pi model.
+"""Why we changed the official TurtleBot3 model (Part A).
 
-Starts from the official dynamics and applies the three Track A fixes one at a time.
-For each step the robot drives straight (4 rad/s) and turns on the spot (-3/+3 rad/s) for 2 s,
-and we compare true motion with what the wheel encoders say. Ground truth is used only to
-score. Run from the project root:
-    python part_A_modelling/official_model_checks.py
+Drives the robot straight and turns it on the spot, adding our three fixes one at a time
+(raised chassis collision box, frictionless casters, stronger wheel servo). Prints how far the
+robot really moved divided by what the wheel encoders say: 1.000 means no wheel slip.
+Takes about 20 s. Press Run.
 """
 from pathlib import Path
 import math
@@ -66,6 +65,7 @@ def chassis_load(m, d):
 
 
 def main():
+    print('Checking the official robot model against our fixes (about 20 s)...', flush=True)
     steps = [('official dynamics', False, False, 0.1),
              ('+ chassis box off the floor', False, True, 0.1),
              ('+ casters frictionless (priority)', True, True, 0.1),

@@ -1,23 +1,11 @@
-"""Phase 6: robustness trials. Random starts and obstacle layouts, plus disturbances.
+"""Robustness test: 80 missions in random rooms with things going wrong (Part E).
 
-Conditions (each trial also has a random start pose and random obstacle positions):
-    nominal     no disturbance
-    push        a sideways shove part-way through (8 N for 0.2 s, random direction)
-    slip        tyre friction cut from 1.0 to 0.1 (slippery floor)
-    occlusion   camera sees no tags for a random 10 s window (blocked or blinded)
-    latency     every tag measurement arrives 0.2 s after its camera frame
-    latency_nocomp  same, with the EKF's latency compensation switched off (for comparison)
-    noise_x2    all sensor noise doubled
-    combined    push + slip + occlusion + 0.1 s latency
-
-The robot runs entirely on src/ (SimRobot -> Mission). Pushes, friction and obstacle positions
-are changes to the simulated world; occlusion and latency are sensor faults inside SimRobot.
-Ground truth (eval/ground_truth.py) is used only to score and to diagnose failures.
-
-Run from the project root:
-    python part_E_integration_and_robustness/run_trials.py                 # 10 trials per condition, 4 processes
-    python part_E_integration_and_robustness/run_trials.py --trials 3      # quicker
-    python part_E_integration_and_robustness/run_trials.py --only push     # one condition
+Every trial has a random start, random obstacle positions and a random starting error.
+Conditions: nominal, push, slippery tyres, camera blinded for 10 s, camera delay (with and without
+our latency fix), double sensor noise, and all of them at once. Prints the success rate for each
+condition and explains why any run failed.
+Saves plots and results/trials/. Takes about 5 min on 4 cores. Press Run.
+Options: --trials N, --only push, --record run.mp4 --only combined --trial 7 (one run as a video).
 """
 from pathlib import Path
 import argparse
@@ -341,6 +329,7 @@ def main():
     if args.report_only:
         report(json.loads((OUT / 'summary.json').read_text())['trials'])
         return
+    print('Running the robustness trials, about 5 min on 4 cores (no window; one line per finished trial)...', flush=True)
     conds = [args.only] if args.only else CONDITIONS
     jobs = [(c, i) for c in conds for i in range(args.trials)]
     t0 = time.time()

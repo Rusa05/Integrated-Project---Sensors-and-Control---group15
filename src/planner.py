@@ -1,12 +1,8 @@
-"""A* path planning on the LiDAR grid and conversion to a timed reference trajectory (Part D).
+"""Plans a path around the obstacles and turns it into a timed reference (Part D).
 
-1. A*        8-connected search on the occupancy grid. Cells closer than ROBOT_RADIUS to an
-             obstacle are forbidden; cells within SOFT_MARGIN more pay an extra cost, so paths
-             keep a safety gap where there is room. Unknown cells count as free.
-2. Smooth    shortcut by line of sight, then iterative smoothing, keeping clearance.
-3. Time      resample by arc length; speed limited by v_max, by lateral acceleration on
-             curves and by the wheel-speed limit; accelerate/decelerate at a_max.
-             Output: Reference(t, x, y, theta, v, omega) for the LQR tracker.
+  1. A* on the LiDAR map, staying at least 0.25 m away from obstacles
+  2. shortcut and smooth the path
+  3. add speeds (slower on curves), so the LQR knows where the robot should be at each moment
 """
 from dataclasses import dataclass
 import heapq

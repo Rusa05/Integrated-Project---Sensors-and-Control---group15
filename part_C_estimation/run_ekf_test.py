@@ -1,16 +1,10 @@
-"""Phase 3 evaluation: EKF accuracy and consistency on a drive that loses and regains the marker.
+"""Tests the EKF on its own (Part C).
 
-The robot follows a fixed open-loop command schedule (no feedback, so no ground truth in the
-loop). The EKF runs on noisy encoders (50 Hz) and noisy camera frames (10 Hz). Ground truth,
-read only through eval/ground_truth.py, is used to score the estimate.
-
-Monte Carlo: every run draws new sensor noise and a new initial-estimate error from P0, so the
-average NEES over runs can be compared with chi-square bounds (Bar-Shalom consistency test).
-
-Run from the project root:
-    python part_C_estimation/run_ekf_test.py            # 20 runs + R-scaling study, ~25 min
-    python part_C_estimation/run_ekf_test.py --quick    # 4 runs, no study
-Writes figures and results/summary.json next to this script.
+The robot drives a fixed route with no controller, losing sight of the tags for a while. This is
+run 20 times with different noise, and the EKF is compared with odometry alone and with the true
+position: error, 3-sigma bounds, and NEES/NIS consistency. Then it repeats with R x0.1 and x10 to
+show what happens if we trust the camera more or less.
+Saves plots and results/summary.json. Takes about 6 min. Press Run (add --quick for 4 runs).
 """
 from pathlib import Path
 import argparse
@@ -193,6 +187,7 @@ def plot_consistency(logs, upds, anees, bounds, path):
 
 
 def main():
+    print('Testing the EKF: 20 runs plus the R study, about 6 min (no window; results print at the end)...', flush=True)
     ap = argparse.ArgumentParser()
     ap.add_argument('--quick', action='store_true')
     ap.add_argument('--runs', type=int, default=20)

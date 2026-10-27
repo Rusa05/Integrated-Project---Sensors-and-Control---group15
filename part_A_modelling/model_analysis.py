@@ -1,12 +1,11 @@
-"""Part A (Modelling): checks of the state-space model against the simulated robot.
+"""Checks on our robot model (Part A).
 
-    * controllability of the linearised tracking error, observability for each sensor combination
-    * wheel actuator step response (justifies dropping motor dynamics: kinematic model)
-    * odometry drift on an open-loop figure-eight (what the model + encoders alone achieve)
-
-Run from the project root:   python part_A_modelling/model_analysis.py      (~15 s)
-Writes figures and results/summary.json next to this script. Ground truth is read only through
-eval/ground_truth.py, to score the odometry.
+Prints:
+  - controllability of the tracking-error model (can the LQR fix any error?)
+  - observability for different sensor combinations (which sensors tell us where we are?)
+  - the wheel motor step response (is it OK to ignore motor lag?)
+  - odometry drift on a figure-eight (how wrong do the wheels get on their own?)
+Saves plots and results/summary.json. Takes about 15 s. Press Run.
 """
 from pathlib import Path
 import json
@@ -158,6 +157,7 @@ def odometry_drift():
 
 
 def main():
+    print('Running the model checks (about 15 s)...', flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     summary = {'model': model_analysis(), 'actuator': actuator_step(), 'odometry': odometry_drift()}
     (OUT / 'summary.json').write_text(json.dumps(summary, indent=2, default=float))

@@ -1,15 +1,10 @@
-"""Part C: two estimator studies on the full mission (random layouts from Part E).
+"""Two extra EKF experiments on the full mission (Part C).
 
-  Study A  consistency vs responsiveness: scale the process noise (wheel-slip allowance) x0.3 ... x10
-           with the robot pushed part-way through. Small Q = confident filter that is slow to accept
-           the push; large Q = quick recovery but a pessimistic, noisier estimate in normal driving.
-  Study D  which measurements matter: full pose (range, bearing, tag yaw) vs range + bearing only vs
-           odometry only (camera ignored), nominal conditions.
-
-    python part_C_estimation/tradeoff_studies.py               (~6 min on 4 cores)
-    python part_C_estimation/tradeoff_studies.py --trials 3    (quicker)
-
-Ground truth is used only to score (through the Part E harness).
+  Study A: scale the process noise Q (x0.3 to x10) while the robot gets pushed.
+           Shows the trade-off between a confident filter and one that reacts quickly.
+  Study D: use range + bearing + yaw, range + bearing only, or odometry only.
+           Shows which measurements actually matter.
+Uses the random rooms from Part E. Saves results/tradeoff_studies.*. Takes about 3 min. Press Run.
 """
 from pathlib import Path
 import argparse
@@ -41,6 +36,7 @@ def mean(rs, k):
 
 
 def main():
+    print('Running the Q-scale and measurement studies, about 3 min (no window)...', flush=True)
     ap = argparse.ArgumentParser()
     ap.add_argument('--trials', type=int, default=6)
     ap.add_argument('--workers', type=int, default=4)

@@ -1,19 +1,9 @@
-"""Part B, step B5: checkerboard calibration of the robot camera, as you would on the real robot.
+"""Calibrates the robot's camera with a checkerboard (Part B).
 
-    python part_B_sensing/calibrate_camera.py      (~30 s)
-
-A printed checkerboard (9 x 6 inner corners, 25 mm squares) is shown to a camera identical to the
-robot's front_camera (same field of view, 640 x 480, same pixel noise) in N_VIEWS random poses.
-Corners are found with OpenCV, then:
-
-  1. naive      cv2.calibrateCamera on every view, default flags
-  2. robust     iterative outlier rejection: drop views whose reprojection error is > 3x the median
-  3. lens model which distortion terms to fit, chosen on HELD-OUT views (fit on 2/3, test on 1/3),
-                so a model that only fits noise loses
-
-The chosen K is compared with the value implied by the field of view and written to
-results/camera_calibration.json; src/config.py CAMERA_MATRIX holds the values the robot uses
-(copy them there after re-calibrating).
+Shows a checkerboard to the camera from 60 random angles, finds the corners with OpenCV and works
+out the camera matrix (focal length and image centre). Tests lens models on images that weren't
+used for fitting and picks the simplest one that works. The result goes in src/config.py
+(CAMERA_MATRIX). Takes about 30 s. Press Run.
 """
 from pathlib import Path
 import json
@@ -133,6 +123,7 @@ def held_out_error(obj, img, K, dist):
 
 
 def main():
+    print('Calibrating the camera with a checkerboard (about 30 s)...', flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(SEED)
     tex = OUT / '_checkerboard.png'

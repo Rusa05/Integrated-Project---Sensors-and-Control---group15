@@ -1,18 +1,9 @@
-"""Noisy sensor layer (Part B). Reads only simulated sensor channels, never the base pose.
+"""Adds realistic noise to MuJoCo's perfect sensors (Part B).
 
-MuJoCo gives ideal readings. The values below make them behave like the real
-TurtleBot3 Waffle Pi hardware so that the estimator has to deal with realistic data:
-
-  Encoders  Dynamixel XL430 reports 4096 ticks/rev, so the angle is quantised to
-            2*pi/4096 rad. A small additive angle noise (ENCODER_SIGMA) stands in for
-            backlash and timing jitter. Wheel slip comes from the physics itself.
-  LiDAR     LDS-01 datasheet: +-15 mm accuracy for 0.12-0.5 m, +-5 % for 0.5-3.5 m.
-            We treat those bounds as 2 sigma: sigma = max(7.5 mm, 2.5 % of range).
-            Returns below 0.12 m or above 3.5 m are reported as invalid (inf) and a
-            small fraction of beams drop out at random.
-  Camera    Raspberry Pi Camera v2 field of view (48.8 deg vertical), rendered at 640x480 and CAMERA_RATE Hz. Gaussian pixel noise is added to
-            the image before detection, so measurement noise comes from the detector
-            working on noisy pixels rather than being added to the answer.
+  encoders: rounded to 4096 ticks per turn, like the real motors
+  LiDAR:    noise and missing beams based on the LDS-01 datasheet
+  camera:   10 Hz images with pixel noise
+Also has Odometry, which adds up the wheel movement into a position.
 """
 from dataclasses import dataclass
 import math

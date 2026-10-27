@@ -1,13 +1,9 @@
-"""Part B (Sensing): how accurate are the LiDAR and the marker measurement?
+"""How noisy are the LiDAR and the camera's tag measurements? (Part B)
 
-    * LiDAR: injected noise and dropout checked against the LDS-01-based model
-    * marker: range, bearing and marker-yaw error and detection rate over 0.3-2.7 m and +-40 deg
-      viewing angles; fits the range bias (calibration) and the noise power laws sigma(r) = a r^p
-      that set R in the EKF (src/ekf.py)
-
-Run from the project root:   python part_B_sensing/sensor_noise.py      (~45 s)
-Writes figures and results/summary.json next to this script. Ground truth is read only through
-eval/ground_truth.py, to place the robot and score each measurement.
+Puts the robot at lots of distances and angles from the 10 cm dock tag, measures range, bearing
+and tag yaw with the camera, and compares them with the truth. Fits the range bias and the noise
+curves the EKF uses for R. Also checks the LiDAR noise.
+Saves plots and results/summary.json. Takes about 45 s. Press Run.
 """
 from pathlib import Path
 import json
@@ -180,6 +176,7 @@ def marker_noise(frames_per_pose=8):
 
 
 def main():
+    print('Measuring LiDAR and tag noise (about 45 s)...', flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
     summary = {'lidar': lidar_noise(), 'marker': marker_noise()}
     (OUT / 'summary.json').write_text(json.dumps(summary, indent=2, default=float))
