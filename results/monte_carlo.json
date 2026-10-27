@@ -39,16 +39,16 @@
     "dock_pos_mean_cm": 0.384773621743294,
     "dock_pos_max_cm": 1.0016089509025656,
     "dock_yaw_mean_deg": 1.1192150190758205,
-    "est_rmse_cm": 5.801463507780738,
-    "est_rmse_yaw_deg": 10.308059890020386,
-    "mean_nees": 128.7586273710929,
-    "nees_in_95": 0.5452401165674294,
+    "est_rmse_cm": 3.942524886262546,
+    "est_rmse_yaw_deg": 1.375707063549279,
+    "mean_nees": 19.741294798964315,
+    "nees_in_95": 0.5647148297939325,
     "track_lat_cm": 3.4894205154536793,
     "collisions": 0,
     "relocalise": 4,
     "time_s": 63.62500000002128,
     "push_recovery_s": 6.507845159604524,
-    "push_peak_err_cm": 26.45601103336155
+    "push_peak_err_cm": 26.45071936729299
   },
   "slip": {
     "n": 6,

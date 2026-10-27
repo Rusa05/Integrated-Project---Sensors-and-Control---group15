@@ -8,7 +8,7 @@
 | **Members** | *Name 1 (ID)*, *Name 2 (ID)*, *Name 3 (ID)*, *Name 4 (ID)* |
 | **Track** | A — mobile robot: visual waypoint navigation (TurtleBot3 Waffle Pi, 2D LiDAR + camera, MuJoCo) |
 | **Repository** | https://github.com/Rusa05/Integrated-Project---Sensors-and-Control---group15 (branch `Claudia`) |
-| **Demo video (5 min)** | *add link* |
+| **Demo video (5 min)** | *add link* — raw clips: `results/runs/demo_nominal.mp4`, `demo_push.mp4` (regenerate with `--record`) |
 
 A TurtleBot3 starts at an unknown pose in a 6 × 4 m room with obstacles it has never seen.
 It localises from ArUco tags, maps the obstacles with its LiDAR, plans and tracks a path with
@@ -200,7 +200,20 @@ gives a safety stop at 0.20 m.
 | R(yaw) | view-dependent, floor (0.03 rad)² | calibrated |
 | gate | χ²(dof, 0.997) | rejects IPPE flips and mis-detections |
 
-{{EST_RESULTS}}
+**Results** (from the 43-mission Monte Carlo in §7 and `figures/mc_consistency.png`):
+
+* Estimation RMSE is **1.9–2.4 cm and 0.4–0.8°** in every condition without a push, including a
+  slippery floor, a 4 % encoder-scale error and a degraded camera. In the docking phase it is
+  ≈ 0.1 cm with σ ≈ 0.3 cm, thanks to the two dock tags.
+* **Consistency.** The mean NEES is 1.9–3.1 against an ideal of 3 (nominal 3.09), so on average
+  the filter's confidence is right. The *distribution* is not χ²: most samples sit well inside
+  their predicted σ (conservative, mean NIS/dof ≈ 0.1 because of the R floors), while a few
+  short excursions are over-confident (only 64–78 % of samples fall in the 95 % band). Those
+  excursions occur on fast in-place turns and right after initialisation, where the
+  linearisation is worst. This is the classic EKF inconsistency (Huang et al. 2008), so we
+  report it rather than tune it away.
+
+<p align="center"><img src="results/figures/mc_consistency.png" width="900"></p>
 
 ## 6. Control (Part D)
 
@@ -216,15 +229,104 @@ gives a safety stop at 0.20 m.
 * **Docking:** turn to face the dock, then a 5 cm/s straight reference to the dock pose, tracked
   by the same LQR on the EKF estimate. Stop when the estimate reaches the pose.
 
-{{CTRL_RESULTS}}
+**Results.** The true cross-track error, measured against the reference with ground truth, is
+**1.1 cm RMSE (max ≈ 2.5 cm)** in all undisturbed conditions. The final docking error is
+**0.21–0.31 cm and 1.1–1.6°** (mean) across all 43 missions, with a worst case of 1.0 cm. That is
+well inside the 3 cm / 5° success criterion.
+
+Because the controller tracks the *estimate*, the true tracking error cannot be smaller than the
+estimation error, and the data show exactly that: the true cross-track RMSE (1.1 cm) is set by
+the estimation RMSE (≈ 2 cm), not by the controller's believed error. Study C (§8) confirms it.
 
 ## 7. Integration and robustness (Part E)
 
-{{MC_RESULTS}}
+<p align="center"><img src="results/figures/mc_summary.png" width="950"></p>
+
+43 missions over 7 conditions, each seeded and reproducible (`scripts/05_monte_carlo.py`; full
+table in [`results/monte_carlo.md`](results/monte_carlo.md)). Success means docked within
+3 cm and 5° with no collision.
+
+| Scenario | Trials | Success | Dock err. [cm] mean / max | Est. RMSE [cm] / [°] | Mean NEES | Track RMSE [cm] | Re-localisations |
+|---|---|---|---|---|---|---|---|
+| nominal | 5 | **100 %** | 0.21 / 0.24 | 2.14 / 0.41 | 3.09 | 1.06 | 0 |
+| random layout (obstacles ±25 cm, start ±0.2 m / ±34°) | 8 | **100 %** | 0.24 / 0.30 | 2.32 / 0.40 | 2.25 | 1.11 | 0 |
+| push (25 N for 0.3 s, random direction) | 6 | **100 %** | 0.38 / 1.00 | 3.94 / 1.38 | 19.7 | 3.49 | 4 |
+| slippery floor (μ 0.25, calibrated at 1.0) | 6 | **100 %** | 0.25 / 0.30 | 1.95 / 0.38 | 2.36 | 1.09 | 0 |
+| encoder-scale error (+4 % / −1 %) | 6 | **100 %** | 0.24 / 0.31 | 1.86 / 0.78 | 2.16 | 1.17 | 0 |
+| degraded camera (×3 pixel noise, 40 % frames lost) | 6 | **100 %** | 0.24 / 0.29 | 2.35 / 0.46 | 1.94 | 1.19 | 0 |
+| combined (push + bias + camera + LiDAR noise ×2) | 6 | **100 %** | 0.31 / 0.60 | 3.20 / 0.90 | 14.6 | 2.61 | 0 |
+
+**Diagnosis of the disturbed cases:**
+* **Push.** The shove moves the robot 18–33 cm in 0.3 s, which odometry cannot see (the
+  wheels mostly skid), so the estimate is suddenly 25–29 cm wrong. The high NEES in this row is
+  that interval. The data show two recovery paths:
+  * **Re-localisation** (4 of 6 trials: s0, s2, s3, s5). Six consecutive camera updates were
+    gated out, the divergence detector reset the filter and the robot spun until it could
+    re-initialise. It recovered in 0.9–1.1 s when tags were already in view, and 7.5–8.1 s when
+    it first had to turn towards them. Mean NEES 6–10.
+  * **Absorption** (s1, s4). The innovations were large but not consistently rejected, so
+    covariance inflation let the filter converge on its own in 9.6–11.9 s. Meanwhile it was
+    over-confident (NEES 18 and 68), which produces most of this row's high NEES. A lower
+    divergence threshold would trade these slow, over-confident recoveries for more resets.
+
+  All 6 still docked (worst 1.0 cm).
+* **Slip and encoder bias** barely change the results: they are slow, systematic odometry
+  errors, and at least one tag is in view most of the time, so the camera corrects them.
+  Without the camera the same bias is what makes the odometry-only ablation fail (Study D).
+* **Degraded camera.** Losing 40 % of frames and tripling the pixel noise raises estimation RMSE
+  by only ≈ 10 %, because R is set from calibrated noise (with floors) and the χ² gate removes
+  the worst detections.
+
+**Ground truth in these numbers** comes from `ground_truth_for_evaluation()` in the logger only.
 
 ## 8. Trade-offs and extensions beyond the brief
 
-{{TRADEOFFS}}
+Full tables in [`results/tradeoffs.md`](results/tradeoffs.md) (`scripts/06_tradeoffs.py`, 3–4 seeds per point).
+
+**A. Consistency against responsiveness (EKF process-noise scale, push scenario).**
+
+| q scale | 0.1 | 0.3 | **1** | 3 | 10 |
+|---|---|---|---|---|---|
+| mean NEES | 26.0 | 11.9 | 27.8 | 8.5 | **5.1** |
+| push recovery [s] | 1.8 | **1.2** | 4.6 | 5.2 | 3.1 |
+| re-localisations (of 3) | 3 | 3 | 2 | 2 | 1 |
+
+With a small q the filter is over-confident, so the push is rejected wholesale. The divergence
+detector then re-localises from scratch, which is *fast* (1–2 s) but means throwing the estimate
+away. With a large q the filter absorbs the push itself (fewer re-localisations, NEES nearer
+consistent) but recovers more slowly, and in normal driving it trusts odometry less. The data
+are noisy with 3 seeds, so we read the trend, not the individual points.
+
+<p align="center"><img src="results/figures/tradeoff_A_process_noise.png" width="900"></p>
+
+**B. Trusting the camera (R scale).** R × 0.1 gives NEES 108, 24 gated updates and a 9.4° yaw RMSE,
+so it is badly over-confident. R × 3 gives NEES 1.2 at the same accuracy. The default (NEES 2.1)
+sits on the safe side of consistency. The low NIS/dof (0.08) shows that the R floors, not the
+calibrated noise, dominate; the floors cover effects a static calibration cannot see (motion
+during the exposure, timing).
+
+**C. Tracking error against control effort (LQR R scale).** Scaling R by 0.1 → 10 halves the
+control chatter (Σ|Δω| 15.2 → 7.5) and cuts ∫ω² by 32 %, while the true cross-track RMSE stays at
+1.1–1.4 cm, within the seed-to-seed spread. **There is no trade-off to exploit here: tracking
+accuracy is limited by estimation error, not control authority.** A less aggressive LQR (R × 3–10)
+would save effort at no measurable cost.
+
+<p align="center"><img src="results/figures/tradeoff_C_lqr.png" width="800"></p>
+
+**D. Which measurements matter.**
+
+| Configuration | Est. RMSE [cm] | Dock err. [cm] | Docked |
+|---|---|---|---|
+| range + bearing + yaw (default) | 1.79 | 0.27 | 4/4 |
+| range + bearing only | **1.60** | 0.25 | 4/4 |
+| odometry only (after initialisation) | 9.15 | 15.75 | **0/4** |
+
+The camera is essential: dead reckoning alone ends 6–29 cm from the dock. Tag **yaw adds
+nothing** in this room, because several tags (or the two dock tags) are usually visible and two
+point landmarks already make the pose observable (§3). Range + bearing alone is even slightly
+more consistent (NEES 1.3). Yaw only matters when a single tag is in view, which is exactly the
+case the dock-tag design removes. We keep yaw on by default for that single-tag case and report
+this honestly.
 
 Engagement beyond the tutorial material, each backed by numbers above:
 1. Platform-specific odometry model (speed-dependent radius and turn gain, ICR offset), with
@@ -237,7 +339,22 @@ Engagement beyond the tutorial material, each backed by numbers above:
 
 ## 9. Limitations (what the results do and do not support)
 
-{{LIMITS}}
+* **Simulation only.** Real cameras add blur, rolling shutter, lighting changes and lens
+  distortion; the real LDS-01 has reflectivity-dependent errors. The noise models here are
+  calibrated against the simulator's renderer, so they will need re-measuring on hardware.
+* **The Monte Carlo is small** (5–8 trials per condition). 100 % success over 43 trials bounds the
+  failure rate below ≈ 7 % at 95 % confidence (rule of three), not lower.
+* **EKF consistency is only average-case.** Mean NEES ≈ 3, but the 95 % band holds only 64–78 % of
+  samples (§5). A UKF or an invariant EKF would be the natural next step.
+* **Unmodelled disturbances are handled by detection, not modelling.** The push recovery relies on a
+  divergence detector and re-localisation; a robot that could not see two tags after a push would
+  stay lost until it did.
+* **Known map of tags.** The tag poses are given; mapping errors in them would bias the estimate.
+  The obstacles are *not* known: they are mapped online by LiDAR.
+* **One local friction patch was abandoned.** In MuJoCo its edge trapped the wheels (a simulator
+  artefact), so the slip study uses a uniformly slippery floor instead.
+* **Simulator adjustment.** The menagerie actuator gain was raised (`kv` 0.1 → 1.0, §3). Results
+  depend on that choice being a fair model of a Dynamixel in velocity mode.
 
 ## 10. Repository layout
 
