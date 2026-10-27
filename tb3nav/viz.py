@@ -91,13 +91,18 @@ class Recorder:
         self.writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), fps,
                                       (self.W, self.H))
         self.last_cam = np.zeros((self.H // 2, self.W // 3, 3), np.uint8)
+        self.last_scan_pkt = None   # LiDAR runs at 5 Hz: keep the latest scan for display
+        self.n_seen = 0             # camera runs at 10 Hz: keep the latest detection count
         self.title = ""
 
     def __call__(self, sim, robot, pkt):
         if self.ren is None:
             self.ren = mujoco.Renderer(sim.model, self.H, int(self.W * 2 / 3))
         self.k += 1
+        if pkt.scan is not None:
+            self.last_scan_pkt = pkt
         if pkt.image is not None:
+            self.n_seen = len(robot.last_obs)
             img = pkt.image.copy()
             for o in robot.last_obs:
                 cv2.polylines(img, [o.corners.astype(np.int32)], True, (0, 255, 0), 2)
@@ -110,7 +115,7 @@ class Recorder:
         # follow the robot loosely
         self.cam.lookat[:2] = 0.8 * self.cam.lookat[:2] + 0.2 * truth[:2]
         self.ren.update_scene(sim.data, camera=self.cam)
-        draw_overlays(self.ren.scene, robot, pkt)
+        draw_overlays(self.ren.scene, robot, self.last_scan_pkt)
         left = self.ren.render()
         panel = np.full((self.H // 2, self.W // 3, 3), 25, np.uint8)
         est, P = robot.ekf.s, robot.ekf.P
@@ -119,7 +124,7 @@ class Recorder:
                  f"true  x={truth[0]:5.2f} y={truth[1]:5.2f} th={np.degrees(truth[2]):6.1f}",
                  f"est   x={est[0]:5.2f} y={est[1]:5.2f} th={np.degrees(est[2]):6.1f}",
                  f"3sig  xy={3*np.sqrt(max(P[0,0],P[1,1])):.3f} m  th={np.degrees(3*np.sqrt(P[2,2])):.1f} deg",
-                 f"|est-true| = {100*err:5.1f} cm", f"markers seen: {len(robot.last_obs)}",
+                 f"|est-true| = {100*err:5.1f} cm", f"markers seen: {self.n_seen}",
                  "green: estimate+3sig  blue: ref", "yellow: LiDAR @ est. pose"]
         for i, l in enumerate(lines):
             cv2.putText(panel, l, (8, 22 + 26 * i), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
