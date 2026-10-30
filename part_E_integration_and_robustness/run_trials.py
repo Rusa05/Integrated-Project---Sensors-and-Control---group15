@@ -128,7 +128,7 @@ def run_trial(args):
         writer = cv2.VideoWriter(str(record), cv2.VideoWriter_fourcc(*'mp4v'), 25, (960, 720))
         rcam, ropt = vid.overview_camera(), mujoco.MjvOption()
         ropt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = False
-        est_trail, true_trail, tick = [], [], 0
+        est_trail, true_trail, tick, last_scan = [], [], 0, None
     try:
         while data.time - t0 < TIMEOUT and not mission.finished:
             dphi, meas, scan = robot.sense()
@@ -155,11 +155,13 @@ def run_trial(args):
             if int(round(data.time / rm.DT)) % 10 == 0:
                 traj.append((truth[0], truth[1], mission.ekf.x[0], mission.ekf.x[1]))
             if writer is not None:
+                if scan is not None:
+                    last_scan = scan
                 if tick % 5 == 0:
                     est_trail.append(mission.ekf.x[:2].copy()); true_trail.append(truth[:2].copy())
                 if tick % 2 == 0:
                     renderer.update_scene(data, camera=rcam, scene_option=ropt)
-                    vid.draw_overlays(renderer.scene, mission, est_trail, true_trail)
+                    vid.draw_overlays(renderer.scene, mission, est_trail, true_trail, last_scan)
                     frame = vid.compose_frame(renderer.render(), robot, mission, truth, data.time - t0)
                     tags = [f'condition: {cond}']
                     if push and push['t'] <= data.time < push['t'] + 1.5:

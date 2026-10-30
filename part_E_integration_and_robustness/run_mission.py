@@ -22,7 +22,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from src import config, model as rm               # noqa: E402
+from src.mapping import LIDAR_OFFSET               # noqa: E402
 from src.mission import Mission                    # noqa: E402
+from src.sensors import LIDAR_ANGLES               # noqa: E402
 from src.robot import SimRobot                     # noqa: E402
 from eval import ground_truth as gt                # noqa: E402
 
@@ -52,8 +54,16 @@ def _rot_z(th):
     return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
 
-def draw_overlays(scn, mission, est_trail, true_trail):
+def draw_overlays(scn, mission, est_trail, true_trail, scan=None):
     x = mission.ekf.x
+    # LiDAR hits: a red dot where each beam hit something, placed using the EKF pose (as the map is)
+    if scan is not None:
+        c, s = math.cos(x[2]), math.sin(x[2])
+        ox, oy = x[0] + c * LIDAR_OFFSET[0] - s * LIDAR_OFFSET[1], x[1] + s * LIDAR_OFFSET[0] + c * LIDAR_OFFSET[1]
+        for ang, r in zip(LIDAR_ANGLES, scan):
+            if np.isfinite(r):
+                _add_geom(scn, mujoco.mjtGeom.mjGEOM_SPHERE, [0.02] * 3,
+                          [ox + r * math.cos(x[2] + ang), oy + r * math.sin(x[2] + ang), 0.12], np.eye(3), [1, 0.1, 0.1, 1])
     # EKF estimate: arrow along the estimated heading (arrow geoms point along their local z)
     z = np.array([math.cos(x[2]), math.sin(x[2]), 0.0])
     xa = np.array([-z[1], z[0], 0.0])
@@ -94,7 +104,7 @@ def compose_frame(scene_rgb, robot, mission, truth, t):
              f'error {err * 100:4.1f} cm   3-sigma {300 * math.sqrt(max(P[0, 0], P[1, 1])):4.1f} cm',
              'tags in view: ' + (', '.join(f'{m.id} ({m.range:.2f} m)' for m in robot.last_markers) or 'none')]
     legend = ['blue arrow/ellipse: EKF estimate, 3-sigma', 'blue dots: estimated path   black dots: true path',
-              'orange dots: planned path']
+              'orange dots: planned path   red dots: LiDAR hits']
 
     def panel(text_lines, x0, y0, width):
         h = 22 * len(text_lines) + 12
@@ -127,7 +137,7 @@ def run(start, seed=0, viewer=False, record=None, realtime=True):
     robot = SimRobot(model, data, seed=seed)
     rng = np.random.default_rng(3000 + seed)
     mission = Mission(np.array(start) + rng.multivariate_normal(np.zeros(3), P0), P0, dock=True)
-    collisions, est_trail, true_trail = set(), [], []
+    collisions, est_trail, true_trail, last_scan = set(), [], [], None
     marker_last_seen_range, t0 = math.inf, data.time
     v_handle = writer = renderer = None
     if viewer:
@@ -135,6 +145,8 @@ def run(start, seed=0, viewer=False, record=None, realtime=True):
         cam = overview_camera()
         v_handle.cam.lookat[:], v_handle.cam.distance = cam.lookat, cam.distance
         v_handle.cam.azimuth, v_handle.cam.elevation = cam.azimuth, cam.elevation
+        with v_handle.lock():                     # LiDAR rays would hide the robot; as in the video
+            v_handle.opt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = False
     if record:
         renderer = mujoco.Renderer(model, 720, 960)
         writer = cv2.VideoWriter(str(record), cv2.VideoWriter_fourcc(*'mp4v'), 25, (960, 720))
@@ -154,6 +166,8 @@ def run(start, seed=0, viewer=False, record=None, realtime=True):
             # ---- evaluation / display only ------------------------------------------------
             truth = gt.true_pose(model, data)
             collisions |= gt.robot_collisions(model, data)
+            if scan is not None:                                    # LiDAR runs at 5 Hz: keep the last scan
+                last_scan = scan
             if tick % 5 == 0:
                 est_trail.append(mission.ekf.x[:2].copy()); true_trail.append(truth[:2].copy())
             if v_handle is not None:
@@ -161,13 +175,13 @@ def run(start, seed=0, viewer=False, record=None, realtime=True):
                     break
                 with v_handle.lock():
                     v_handle.user_scn.ngeom = 0
-                    draw_overlays(v_handle.user_scn, mission, est_trail, true_trail)
+                    draw_overlays(v_handle.user_scn, mission, est_trail, true_trail, last_scan)
                 v_handle.sync()
                 if realtime:
                     time.sleep(max(0.0, rm.DT - (time.perf_counter() - started)))
             if writer is not None and tick % 2 == 0:
                 renderer.update_scene(data, camera=rcam, scene_option=ropt)
-                draw_overlays(renderer.scene, mission, est_trail, true_trail)
+                draw_overlays(renderer.scene, mission, est_trail, true_trail, last_scan)
                 writer.write(compose_frame(renderer.render(), robot, mission, truth, data.time - t0))
             tick += 1
             if mission.finished:

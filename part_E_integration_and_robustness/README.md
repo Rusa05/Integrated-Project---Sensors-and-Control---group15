@@ -56,6 +56,7 @@ Results: `results/mission/` (E1) and `results/trials/` (E2).
 | Blue arrow + ellipse | EKF estimate and its 3σ position uncertainty |
 | Blue / black dots | Estimated / true path so far |
 | Orange dots | Current planned path |
+| Red dots | Where the latest LiDAR scan hit something, placed using the EKF pose (the rays themselves are hidden so they don't cover the robot) |
 | Top-left panel | State, EKF pose, true pose, error, 3σ, tags in view with their ranges |
 | Top-right inset | The robot's camera, every detected tag outlined in green (greyed out while the camera is blinded) |
 | Banner (trials only) | Active disturbances: push, blinded camera, latency, slip |
