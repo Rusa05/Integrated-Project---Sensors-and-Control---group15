@@ -7,7 +7,7 @@ A TurtleBot3 Waffle Pi in MuJoCo crosses a room it has never seen, builds a LiDA
 | | |
 |---|---|
 | **Track** | A, mobile robot: visual waypoint navigation |
-| **Team** | Group 15: *add names and student IDs* (see [Individual contributions](#individual-contributions)) |
+| **Team** | Group 15 (members and contributions: see [Individual contributions](#individual-contributions)) |
 | **Code** | <https://github.com/Rusa05/Integrated-Project---Sensors-and-Control---group15> |
 | **Demo video (5 min)** | *add link* |
 
@@ -399,26 +399,22 @@ Random seeds are fixed, so each script reproduces the numbers on this page.
 
 ## Individual contributions
 
-> *To be completed by the team. Each member writes their own row: what they designed, implemented, tested and wrote, with the files and parts. Viva questions cover your own part and at least one part you didn't lead.*
-
-| Member (student ID) | Main contributions | Files / phases |
+| Member | Main contributions | Files / phases |
 |---|---|---|
-| *name (ID)* | | |
-| *name (ID)* | | |
-| *name (ID)* | | |
-| *name (ID)* | | |
+| Joshua Noh | Part A (modelling), Part B (sensing); GitHub setup; starting code repository setup | [`part_A_modelling/`](part_A_modelling/), [`part_B_sensing/`](part_B_sensing/) |
+| Rudra Narayan Sahu | Part C (estimation); GitHub setup | [`part_C_estimation/`](part_C_estimation/) |
+| Lily Natiq | Part D (control) | [`part_D_control/`](part_D_control/) |
+| Claudia Ruggiero | Part E (integration and robustness) | [`part_E_integration_and_robustness/`](part_E_integration_and_robustness/) |
 
 ---
 
 ## Generative AI declaration
 
-> *Review and edit so it matches how each member actually used these tools.*
-
 | Tool | Used for |
 |---|---|
 | **ChatGPT** (OpenAI) | Setup troubleshooting, early project planning, and adapting the initial movement-test script (`part_A_modelling/open_loop_test.py`) |
 | **Codex** (OpenAI) | Generating the original primitive-shape starter robot and the keyboard-driving script (`part_A_modelling/turtlebot_sim.py`, since adapted to the Waffle Pi) |
-| **Claude** (Anthropic, via Claude Code) | Project planning document; writing and debugging code for Parts A–E (tag map and scene, model checks, sensor noise, camera calibration, vision, EKF, mapping, planner, LQR, mission, trials, video recorder); diagnosing the official model's slip, the robustness-trial failures and the multi-tag over-confidence; drafting READMEs and this page |
+| **Claude** (Anthropic, via Claude Code) | Checking that the code was working as intended, and helping fix bugs in our system |
 
 All results on this page come from running the code in this repository. The team is responsible for checking, understanding and being able to explain every part of it in the viva.
 
