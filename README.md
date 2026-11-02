@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| **Group** | 15 *(confirm)* |
-| **Members** | *Name 1 (ID)*, *Name 2 (ID)*, *Name 3 (ID)*, *Name 4 (ID)* |
-| **Track** | A — mobile robot: visual waypoint navigation (TurtleBot3 Waffle Pi, 2D LiDAR + camera, MuJoCo) |
+| **Group** | 15 |
+| **Members** | *Claudia Ruggiero (25476387)*, *Name 2 (ID)*, *Name 3 (ID)*, *Name 4 (ID)* |
+| **Track** | A : mobile robot: visual waypoint navigation (TurtleBot3 Waffle Pi, 2D LiDAR + camera, MuJoCo) |
 | **Repository** | https://github.com/Rusa05/Integrated-Project---Sensors-and-Control---group15 (branch `Claudia`) |
 | **Demo video (5 min)** | *add link* — raw clips: `results/runs/demo_nominal.mp4`, `demo_push.mp4` (regenerate with `--record`) |
 
