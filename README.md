@@ -412,7 +412,6 @@ Random seeds are fixed, so each script reproduces the numbers on this page.
 
 ## Generative AI declaration
 
-> *Review and edit so it matches how each member actually used these tools.*
 
 | Tool | Used for |
 |---|---|
