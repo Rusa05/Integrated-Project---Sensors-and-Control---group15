@@ -403,8 +403,8 @@ Random seeds are fixed, so each script reproduces the numbers on this page.
 
 | Member (student ID) | Main contributions ||
 |---|---|---|
-| *Lily Natiq 25333218* |Part D, video| |
-| *Claudia Ruggiero 25476387* |Part E, video| |
+| *Lily Natiq 25333218* |Part E, video| |
+| *Claudia Ruggiero 25476387* |Part D, video| |
 | *Joshua Noh 26253120* |Part A, B, Github set up| |
 | *Rudra Narayan Sahu 26539837* |Part C, Github file upload, video| |
 
