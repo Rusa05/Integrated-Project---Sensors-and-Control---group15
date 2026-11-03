@@ -1,409 +1,434 @@
-# Track A — TurtleBot3 visual waypoint navigation and docking
+# Track A: TurtleBot3 Visual Waypoint Navigation and Docking
 
-**UTS 41014 Sensors and Control for Mechatronic Systems — Integrated Project**
+**UTS 41014 Sensors and Control in Mechatronics Systems: Integrated Project, Group 15**
+
+A TurtleBot3 Waffle Pi in MuJoCo crosses a room it has never seen, builds a LiDAR map, plans around the obstacles, and docks on an ArUco-marked charging pad. It knows where it is from an **EKF that fuses wheel odometry with camera measurements of nine ArUco tags** (six on the walls, three on the dock), and it is steered by an **LQR trajectory tracker that only ever sees the EKF estimate**. Simulator ground truth is used only to score the runs.
 
 | | |
 |---|---|
-| **Group** | 15 |
-| **Members** | *Claudia Ruggiero (25476387)*, *Name 2 (ID)*, *Name 3 (ID)*, *Name 4 (ID)* |
-| **Track** | A : mobile robot: visual waypoint navigation (TurtleBot3 Waffle Pi, 2D LiDAR + camera, MuJoCo) |
-| **Repository** | https://github.com/Rusa05/Integrated-Project---Sensors-and-Control---group15 (branch `Claudia`) |
-| **Demo video (5 min)** | *add link* — raw clips: `results/runs/demo_nominal.mp4`, `demo_push.mp4` (regenerate with `--record`) |
+| **Track** | A, mobile robot: visual waypoint navigation |
+| **Team** | Group 15: *add names and student IDs* (see [Individual contributions](#individual-contributions)) |
+| **Code** | <https://github.com/Rusa05/Integrated-Project---Sensors-and-Control---group15> |
+| **Demo video (5 min)** | *add link* |
 
-A TurtleBot3 starts at an unknown pose in a 6 × 4 m room with obstacles it has never seen.
-It localises from ArUco tags, maps the obstacles with its LiDAR, plans and tracks a path with
-an LQR controller and docks at an ArUco-marked charging station. **The controller only ever
-sees the EKF estimate;** the simulator's true pose is used for logging and scoring only.
+![The full mission: EKF estimate and 3σ ellipse (blue), true and estimated paths, plan (orange), robot camera with detected tags](part_E_integration_and_robustness/results/mission/mission_frame.jpg)
 
-<p align="center"><img src="results/runs/nominal_seed0.png" width="900"></p>
+## Results at a glance
 
-> **New to the repo?** [`docs/step_by_step.md`](docs/step_by_step.md) walks through every step,
-> the reasoning behind it, the video plan and viva preparation.
+| What | Result | Where |
+|---|---|---|
+| Full mission, fixed scenarios | **9 / 9 docked**, 0.63 cm and 0.5° from the dock goal | [Part E](part_E_integration_and_robustness/) |
+| Robustness: random layouts × pushes, slip, blinded camera, camera latency, 2× noise, all combined | **70 / 70 docked**, worst 0.91 cm; a push throws the estimate under 3 cm off | [Part E](part_E_integration_and_robustness/) |
+| EKF vs wheel odometry alone (20 Monte Carlo runs) | **2.4 cm vs 8.1 cm** RMS; final 0.23 cm vs 9.0 cm; truth inside 3σ 100 % of the time | [Part C](part_C_estimation/) |
+| EKF consistency | Average NEES 3.3 (ideal 3; 95 % bounds 2.0–4.2) | [Part C](part_C_estimation/) |
+| Path tracking around obstacles | 9 / 9 without contact; 2.2 cm RMS true cross-track error | [Part D](part_D_control/) |
+| Camera calibration | Checkerboard, 56 views, 0.06 px; found a 0.6 px principal-point error in our first assumption | [Part B](part_B_sensing/) |
+| Failures found and fixed | 5, each traced to sensing, estimation or planning | [Part C](part_C_estimation/), [Part E](part_E_integration_and_robustness/) |
+
+## Contents
+
+1. [Quick start](#quick-start)
+2. [System overview](#system-overview)
+3. [Part A: Modelling](#part-a-modelling)
+4. [Part B: Sensing, calibration and frames](#part-b-sensing-calibration-and-frames)
+5. [Part C: Estimation (EKF)](#part-c-estimation-ekf)
+6. [Part D: Planning and control](#part-d-planning-and-control)
+7. [Part E: Integration and robustness](#part-e-integration-and-robustness)
+8. [Limitations](#limitations)
+9. [Repository layout and reproducing every result](#repository-layout-and-reproducing-every-result)
+10. [Individual contributions](#individual-contributions)
+11. [Generative AI declaration](#generative-ai-declaration)
+12. [Sources and acknowledgements](#sources-and-acknowledgements)
 
 ---
 
-## 1. Quick start
+## Quick start
+
+Python 3.10+ (developed on 3.12, MuJoCo 3.15).
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python scripts/04_run_mission.py                         # one mission -> results/runs/nominal_seed0.png
-mjpython scripts/04_run_mission.py --viewer              # macOS live 3D view (python on Linux/Windows)
-python scripts/04_run_mission.py --scenario push --seed 0 --record results/runs/push.mp4
+git clone https://github.com/Rusa05/Integrated-Project---Sensors-and-Control---group15.git
+cd Integrated-Project---Sensors-and-Control---group15
+python -m pip install -r requirements.txt
 ```
 
-Headless Linux: `export MUJOCO_GL=egl` (or `osmesa`) first. The calibration results the
-pipeline needs are committed in `results/calibration.json`. To reproduce everything from
-scratch, run the scripts in order:
+Watch a full mission: open `part_E_integration_and_robustness/run_mission.py` in VS Code and press ▶ Run, or from the repository root:
 
-| Step | Command | Produces |
+```bash
+python part_E_integration_and_robustness/run_mission.py
+```
+
+A MuJoCo window opens, the robot drives to the dock, and the window closes itself after it docks. On macOS use `mjpython` instead of `python` for anything that opens a viewer.
+
+Other entry points (all run from the repository root):
+
+| Command | What it does | Time |
 |---|---|---|
-| 0 | `python scripts/00_frame_diagram.py` | frame diagram |
-| 1 | `python scripts/01_model_analysis.py` | actuator ID, model validation, controllability / observability |
-| 2 | `python scripts/02_calibrate_odometry.py` | odometry model → `results/calibration.json` |
-| 3 | `python scripts/03_calibrate_camera.py` | camera K, ArUco noise model → `results/calibration.json` |
-| 4 | `python scripts/04_run_mission.py [--scenario S --seed k --viewer --record f.mp4]` | one run + figure |
-| 5 | `python scripts/05_monte_carlo.py --workers N` | `results/monte_carlo.md`, `figures/mc_*.png` |
-| 6 | `python scripts/06_tradeoffs.py --workers N` | `results/tradeoffs.md`, `figures/tradeoff_*.png` |
+| `python part_A_modelling/turtlebot_sim.py` | Drive the robot yourself (W/A/S/D, C = camera view) | n/a |
+| `python part_E_integration_and_robustness/run_mission.py --record mission.mp4` | Record a full mission with overlays | ~1 min |
+| `python part_E_integration_and_robustness/run_mission.py --scenario B_box_in_way` | Other start positions: `A_cylinder_in_way`, `B_box_in_way`, `C_far_corner`, or `--start X Y THETA` | n/a |
+| `python part_E_integration_and_robustness/run_trials.py --record disturbed.mp4 --only combined --trial 7` | Record a disturbed run (push, slip, occlusion, latency) | ~1 min |
+| `python part_E_integration_and_robustness/run_trials.py --trials 3` | Quick robustness batch | ~3 min |
 
-## 2. System overview
+Every result on this page has its own script; see [Reproducing every result](#repository-layout-and-reproducing-every-result).
+
+---
+
+## System overview
 
 ```mermaid
 flowchart LR
-  subgraph SIM["MuJoCo world (sim.py) — the only holder of ground truth"]
-    W[room, obstacles, tags, dock] --> S[sensors: encoders 4096 tick/rev,<br/>LiDAR 360 beams 5 Hz,<br/>camera 640x480 10 Hz]
-  end
-  S -- SensorPacket --> O[Odometry<br/>kinematics.py]
-  S -- SensorPacket --> C[ArUco + IPPE PnP<br/>sensing.py]
-  S -- SensorPacket --> L[LiDAR occupancy grid<br/>planner.py]
-  O --> E[EKF<br/>ekf.py]
-  C --> E
-  E -- pose estimate --> L
-  E -- pose estimate --> P[A* + trajectory<br/>planner.py]
-  L --> P
-  P --> K[LQR tracker<br/>controller.py]
-  E -- pose estimate --> K
-  K -- v, ω --> I[DiffDrive.inverse] -- wheel speeds --> SIM
-  SIM -. true pose: logging / scoring only .-> M[metrics.py, plots.py]
+    subgraph Robot["Robot software (src/)  never reads ground truth"]
+        ENC[Wheel encoders<br/>50 Hz] --> PRED[EKF predict]
+        CAM[Camera 10 Hz] --> DET[9 ArUco tags:<br/>detect + solvePnP,<br/>both IPPE solutions] --> UPD[EKF update per tag<br/>size-scaled R and range,<br/>latency-compensated]
+        PRED --> X((x̂, P))
+        UPD --> X
+        LID[LiDAR 5 Hz] --> MAP[Occupancy grid<br/>at x̂] --> PLAN[A* + smoothing<br/>+ timing] --> REF[Reference<br/>x_r, u_r]
+        X --> MAP
+        X --> LQR[LQR tracker]
+        REF --> LQR
+        X --> SM[Mission state machine<br/>ALIGN → TRACK → FINAL_ALIGN → DOCK]
+        SM --> LQR
+        LQR --> WHEELS[Wheel speeds]
+    end
+    WHEELS --> SIM[(MuJoCo)]
+    SIM --> ENC & CAM & LID
+    SIM -. ground truth .-> EVAL[eval/ground_truth.py<br/>scoring only]
 ```
 
-Mission state machine (`mission.py`): `LOCALISE → PLAN → ALIGN → TRACK → DOCK_ALIGN → DOCK → DONE`,
-with replanning when new LiDAR obstacles block the path, on a LiDAR safety stop or on a large
-tracking error. A divergence detector re-localises after 6 consecutive rejected camera updates
-(for example after a push).
+**Ground-truth rule.** The robot's software is everything in [`src/`](src/). It reads only sensor channels: encoders, rangefinders and the rendered camera image. The simulator's true pose is read in exactly one file, [`eval/ground_truth.py`](eval/ground_truth.py), which the test scripts use to place the robot, score runs and diagnose failures. You can check this with:
 
-**Ground truth is evaluation-only and this is visible in the code:** `Simulator.ground_truth_for_evaluation()`
-is called only by the logger in `run_mission`, the video overlay and the offline calibration
-scripts (`grep -n ground_truth tb3nav/*.py scripts/*.py`). The `Robot` class receives only
-`SensorPacket`s.
+```bash
+grep -rn "ground_truth\|qpos" src/
+```
 
-## 3. Modelling (Part A)
+It returns nothing.
 
-Derivation and analysis: `tb3nav/model.py`, `scripts/01_model_analysis.py`, results in
-`results/model_analysis.json`.
+**Mission states** ([`src/mission.py`](src/mission.py)):
 
-**Full model** (5 states, wheel-speed set-points as inputs):
+1. **ALIGN:** turn on the spot to the path heading.
+2. **TRACK:** LQR along the A* path, replanning if the path becomes blocked.
+3. **FINAL_ALIGN:** face the dock from the pre-dock pose, 0.6 m out.
+4. **DOCK:** LQR along a curve that ends on the dock axis, with the two small dock tags in view all the way in.
+5. **DOCKED.**
 
-$$\dot x = \tfrac{r}{2}(\omega_L+\omega_R)\cos\theta,\quad \dot y = \tfrac{r}{2}(\omega_L+\omega_R)\sin\theta,\quad \dot\theta = \tfrac{r}{b}(\omega_R-\omega_L),\quad \dot\omega_i = (\omega_{i,cmd}-\omega_i)/\tau$$
+---
 
-* **τ identified at 7.1 ms** from wheel step responses (static gain ≈ 1.01). Because τ is far
-  below the 50 ms control period, the estimator and controller use the reduced unicycle model
-  `s = [x, y, θ]`, `u = [v, ω]`.
-* **Platform-specific kinematics** (from calibration, §4): speed-dependent effective radius
-  `r_eff(ω̄)`, speed-dependent turn gain `g(ω̄)`, and the robot turns about an ICR **27.7 mm behind
-  the axle**, so `base_link` moves sideways by `−x_ICR·Δθ` on the spot. Open-loop validation
-  against MuJoCo: 5.3 cm position and 5.8° heading drift after 10 s of open-loop driving on encoders alone.
-* **Assumptions stated:** planar motion; rigid body; wheel dynamics much faster than the outer loop
-  (checked); the slip is captured in the calibrated tables plus process noise; the actuator
-  gain `kv` was raised from 0.1 to 1.0 to emulate a Dynamixel in velocity mode (the menagerie
-  value gave a ~2 rad/s dead band against 0.1 N·m joint friction).
+## Part A: Modelling
 
-**Tracking-error model** for the LQR (robot frame, about the reference `v_r, ω_r`):
+Folder: [`part_A_modelling/`](part_A_modelling/) (steps A1–A4).
 
-$$\dot e = \begin{bmatrix}0&\omega_r&0\\-\omega_r&0&v_r\\0&0&0\end{bmatrix}e+\begin{bmatrix}1&0\\0&0\\0&1\end{bmatrix}u,\qquad v=v_r\cos e_\theta-u_1,\ \ \omega=\omega_r-u_2$$
+### Platform
 
-**Controllability.** The error model has rank 3 for `v_r ≠ 0` or `ω_r ≠ 0` and rank 2 at
-`v_r = ω_r = 0`. The unicycle linearised at standstill has rank 2 (Brockett: no smooth static
-feedback stabilises a point). Hence on-the-spot turns use a separate heading controller, and the
-gain schedule clamps `v_r ≥ 1 cm/s`. The full 5-state model is rank 5 when moving and rank 4 at
-standstill.
+The official ROBOTIS TurtleBot3 Waffle Pi model, with real meshes, masses and limits, plus the sensors we added: camera, 72-beam LiDAR and encoders. It runs in a 4 × 4 m room with two obstacles, six wall tags and a charging station.
 
-**Observability** (rank of the observability Gramian over 5 s, `figures/model_analysis.png`):
+- Wheel radius r = 0.033 m, wheel separation b = 0.288 m, mass 1.86 kg.
+- Wheel limit 7.88 rad/s, which gives 0.26 m/s.
 
-| Sensors | Stationary | Driving |
+We found and fixed three problems in the official model's contact and actuator settings. Together they made the robot slip 11 % driving straight and 24 % turning. Each fix is reproducible with `part_A_modelling/official_model_checks.py`:
+
+| Change | Why | Straight / turn, true ÷ odometry |
 |---|---|---|
-| odometry only | 0 / 3 | 0 / 3 |
-| one tag, range + bearing | 2 / 3 | **2 / 3** |
-| one tag, range + bearing + tag yaw | 3 / 3 | 3 / 3 |
-| two tags 10 cm apart, range + bearing | 3 / 3 | 3 / 3 |
+| Official model | n/a | 0.888 / 0.763 |
+| Chassis collision mesh → box raised 1 cm | The mesh touched the floor and carried 35 % of the weight | 0.890 / 0.765 |
+| Caster contact priority | MuJoCo takes the *higher* friction of two touching surfaces, so the "frictionless" casters dragged | 0.999 / 0.998 |
+| Wheel servo gain kv 0.1 → 1.0 | Wheels reached only 49–75 % of the commanded speed; the real XL430 has its own velocity loop | 0.997 / 1.000 |
 
-With one point landmark, rotating the robot's whole pose about it changes neither range nor
-bearing, so the pose is **not** observable even while moving. On the final docking approach the
-tag yaw is unusable (head-on, §4), so the dock carries **two small tags 10 cm apart**. Before
-this change the heading estimate drifted confidently while docking (docking-phase NEES ≈ 14);
-after it the docking-phase NEES is ≈ 0.1–0.2.
+### State-space model
 
-## 4. Sensing, calibration and frames (Part B)
+State **x** = [x, y, θ] (pose of `base_link` in the map frame); input **u** = [v, ω].
 
-<p align="center"><img src="results/figures/frames.png" width="850"></p>
+```
+ẋ = v cos θ        v = r(ω_R + ω_L)/2
+ẏ = v sin θ        ω = r(ω_R − ω_L)/b
+θ̇ = ω
+```
 
-Frames (`tb3nav/frames.py`): **W** world; **B** `base_link` at the axle midpoint (the estimated and
-controlled state); **C** camera optical frame (85.5 mm ahead, 107 mm up, OpenCV axes,
-`R_BC = [[0,0,1],[−1,0,0],[0,−1,0]]`); **L** LiDAR (−49, 0, 172 mm); **M_i** tag frames. A camera
-measurement goes pixel corners → IPPE PnP (`T_CM`) → `T_BM = T_BC·T_CM` → planar range, bearing and
-relative yaw of the tag normal in **B**.
+**Assumptions:** flat floor, rigid body, no lateral slip. Motor dynamics are ignored, because the measured wheel time constant is 14 ms against the 20 ms control period. The model is discretised at 50 Hz with a midpoint rule; the Jacobians are in [`src/model.py`](src/model.py).
 
-### 4.1 Odometry (`scripts/02_calibrate_odometry.py`)
+For control, the tracking error **e** (reference relative to the robot, in the robot frame) is linearised about the reference (v_r, ω_r):
 
-<p align="center"><img src="results/figures/odometry_calibration.png" width="900"></p>
+```
+ė = A e + B u_fb,   A = [[0, ω_r, 0], [−ω_r, 0, v_r], [0, 0, 0]],   B = −[[1,0],[0,0],[0,1]]
+```
 
-| Quantity | Datasheet | Calibrated |
+### Controllability and observability
+
+| Question | Rank | Consequence in the design |
 |---|---|---|
-| wheel radius | 33.0 mm | 28.6 mm at cruise, 31.6–32.5 mm slow or reversing (table of 13 speeds) |
-| turn gain r/b | 0.1146 | 0.0834 on the spot → 0.094 rolling (table) |
-| ICR offset | 0 | −27.7 mm (IQR ±0.2 mm over 23 turns) |
-| 1 m square on odometry, end error | 109–125 cm | 9.4–10.3 cm |
-| odometry noise | — | k_s = 0.024 m^½ per wheel; rotation k_θ = 0.029 rad^½ |
+| Tracking error, reference moving (v_r or ω_r ≠ 0) | **3 / 3** | LQR can correct any error |
+| Tracking error, reference at rest | 2 / 3 | Can't correct sideways error standing still (non-holonomic). So the robot turns on the spot *before* tracking, and docking uses a moving reference |
+| Odometry only | 0 / 3 | Absolute pose unobservable: drifts forever |
+| Range + bearing to one tag, even while moving | **2 / 3** | Rotating the whole path about the tag gives identical readings |
+| Range + bearing + **tag yaw** | **3 / 3** (condition 2.8) | The EKF uses this pose measurement |
+| **Two tags 10 cm apart**, range + bearing only | **3 / 3** (condition 40) | Why the dock has two small tags: observable without yaw. The weak direction (sideways offset paired with heading) mattered when tuning R |
 
-The reference displacement in this offline calibration is the simulator's true pose, used as a tape
-measure or overhead tracker would be on hardware.
+The rank-2 result came back in the robustness trials as a real failure. Range + bearing updates from far away, where the yaw isn't usable, moved the estimate the wrong way. Each tag is now only fused within a size-scaled range. See [Part E](#part-e-integration-and-robustness).
 
-### 4.2 Camera and ArUco measurement model (`scripts/03_calibrate_camera.py`)
+---
 
-<p align="center"><img src="results/figures/marker_noise_vs_range.png" width="900"></p>
+## Part B: Sensing, calibration and frames
 
-* **Intrinsics:** 60 simulated checkerboard views with iterative outlier rejection (52 kept). The
-  lens model was selected on **held-out** reprojection error: pinhole, no distortion, 0.059 px.
-  Calibrated `fx = 529.11, fy = 529.08, cx = 319.53, cy = 239.68` against the analytic 529.08 / 319.5 /
-  239.5. A naïve `calibrateCamera` (no initial guess, no outlier rejection) converged to a K with
-  cx 17 px off, which caused a 0.03 rad bearing bias. This is a real failure we diagnosed.
-* **Noise model** (15 ranges × 3 bearings × 5 viewing angles × 24 noisy frames):
-  * range bias `c₁r + c₂r²` (≈ 4 cm at 3 m) is subtracted online; range σ = 0.7 mm + 2.2 % r;
-  * bearing σ < 0.001 rad, floored at 0.005 rad in the EKF for unmodelled effects;
-  * relative-yaw σ depends on the **viewing angle**: 0.048·r head-on against 0.014·r oblique. Yaw
-    is used only while its σ < 0.08 rad;
-  * **IPPE planar ambiguity:** both PnP solutions are kept and the EKF uses the one consistent
-    with its prior. Gross flips (5–30 % of frames beyond 2.5 m) are rejected by the χ² gate;
-  * tags of other sizes use the same model through pinhole similarity: `σ_s(r) = k·σ_ref(r/k)`,
-    with `k = s/s_ref`.
-* **Tag design:** 15 cm wall tags (usable to 4.4 m, so a tag is in range everywhere in the room)
-  plus two 4 cm dock tags at camera height, which stay in view down to the docked pose.
+Folder: [`part_B_sensing/`](part_B_sensing/) (steps B1–B5).
 
-### 4.3 LiDAR
-LDS-01 model: 360 beams, 5 Hz, 0.12–3.5 m, σ = 5 mm (< 0.5 m) or 1.67 % of range, 1 % dropouts.
-Scans are placed with the EKF pose into a 5 cm log-odds occupancy grid, which is inflated by
-0.24 m (robot half-width 0.153 m plus a 9 cm margin) for planning. A forward-corridor check
-gives a safety stop at 0.20 m.
+![Frame diagram](part_B_sensing/results/frame_diagram.png)
 
-## 5. Estimation (Part C)
+### Tag map
 
-`tb3nav/ekf.py`: EKF on `s = [x, y, θ]`.
+The robot is given the tag positions (like surveyed printed tags) but not the obstacles.
 
-* **Prediction** at 20 Hz from encoder ticks through the calibrated model (`r_eff`, `g`, ICR):
-  `P⁺ = F P Fᵀ + G diag(σ_L², σ_R²) Gᵀ + Q_rot`, with `σ_i = k_s√|arc_i| + 0.1 mm` and
-  `Q_rot = diag(k_xy², k_xy², k_θ²)·|Δθ|`. Full analytic Jacobians F and G.
-* **Update** with each known tag: `z = [range, bearing, relative yaw]`. R is a function of range,
-  tag size and viewing angle (§4.2). Joseph form. χ² gate at 99.7 %.
-* **Initialisation without a prior:** two-tag triangulation from close tags (range + bearing
-  only), or a single close, unambiguous tag pose. The robot spins in `LOCALISE` until the
-  heading σ < 3° and the position σ < 3 cm.
-* **Robustness:** adaptive covariance inflation when *two different* tags are rejected within
-  0.5 s (genuine slip, not a single outlier). A divergence detector (6 consecutive rejections)
-  triggers re-localisation and a map reset, which recovers from the push.
-
-| Parameter | Value | Why |
-|---|---|---|
-| k_s | 0.024 m^½ | 1.2 × calibrated along-track odometry noise |
-| k_θ, k_xy | 0.029 rad^½, 0.0065 m/rad^½ | 1.2 × calibrated in-place-turn residuals |
-| R(range) | (0.7 mm + 2.2 % r)², floor 1 cm | calibrated (§4.2) |
-| R(bearing) | floor (0.005 rad)² | calibrated σ < 0.001; floor covers motion and timing |
-| R(yaw) | view-dependent, floor (0.03 rad)² | calibrated |
-| gate | χ²(dof, 0.997) | rejects IPPE flips and mis-detections |
-
-**Results** (from the 43-mission Monte Carlo in §7 and `figures/mc_consistency.png`):
-
-* Estimation RMSE is **1.9–2.4 cm and 0.4–0.8°** in every condition without a push, including a
-  slippery floor, a 4 % encoder-scale error and a degraded camera. In the docking phase it is
-  ≈ 0.1 cm with σ ≈ 0.3 cm, thanks to the two dock tags.
-* **Consistency.** The mean NEES is 1.9–3.1 against an ideal of 3 (nominal 3.09), so on average
-  the filter's confidence is right. The *distribution* is not χ²: most samples sit well inside
-  their predicted σ (conservative, mean NIS/dof ≈ 0.1 because of the R floors), while a few
-  short excursions are over-confident (only 64–78 % of samples fall in the 95 % band). Those
-  excursions occur on fast in-place turns and right after initialisation, where the
-  linearisation is worst. This is the classic EKF inconsistency (Huang et al. 2008), so we
-  report it rather than tune it away.
-
-<p align="center"><img src="results/figures/mc_consistency.png" width="900"></p>
-
-## 6. Control (Part D)
-
-* **Planner** (`planner.py`): A* (8-connected, clearance cost) on the inflated LiDAR map → line-of-sight
-  shortcutting → Laplacian smoothing (kept collision-free) → speed profile limited by
-  `v_max = 0.15 m/s`, lateral acceleration 0.15 m/s², `|ω| ≤ 0.6 rad/s` and acceleration
-  0.15 m/s² → time-parameterised reference `[x, y, θ, v, ω](t)`.
-* **LQR tracker** (`controller.py`): discrete LQR on the ZOH-discretised error model at 20 Hz,
-  **gain-scheduled** on `(v_r, ω_r)` (cached on a 1 cm/s × 0.02 rad/s grid). Bryson's rule:
-  `Q = diag(1/0.10², 1/0.05², 1/0.15²)` (along 10 cm, cross 5 cm, heading 0.15 rad),
-  `R = diag(1/0.10², 1/0.6²)`. Reference time-scaling: if the robot falls behind by more
-  than 5 cm the reference slows, so a stop does not leave it running away.
-* **Docking:** turn to face the dock, then a 5 cm/s straight reference to the dock pose, tracked
-  by the same LQR on the EKF estimate. Stop when the estimate reaches the pose.
-
-**Results.** The true cross-track error, measured against the reference with ground truth, is
-**1.1 cm RMSE (max ≈ 2.5 cm)** in all undisturbed conditions. The final docking error is
-**0.21–0.31 cm and 1.1–1.6°** (mean) across all 43 missions, with a worst case of 1.0 cm. That is
-well inside the 3 cm / 5° success criterion.
-
-Because the controller tracks the *estimate*, the true tracking error cannot be smaller than the
-estimation error, and the data show exactly that: the true cross-track RMSE (1.1 cm) is set by
-the estimation RMSE (≈ 2 cm), not by the controller's believed error. Study C (§8) confirms it.
-
-## 7. Integration and robustness (Part E)
-
-<p align="center"><img src="results/figures/mc_summary.png" width="950"></p>
-
-43 missions over 7 conditions, each seeded and reproducible (`scripts/05_monte_carlo.py`; full
-table in [`results/monte_carlo.md`](results/monte_carlo.md)). Success means docked within
-3 cm and 5° with no collision.
-
-| Scenario | Trials | Success | Dock err. [cm] mean / max | Est. RMSE [cm] / [°] | Mean NEES | Track RMSE [cm] | Re-localisations |
-|---|---|---|---|---|---|---|---|
-| nominal | 5 | **100 %** | 0.21 / 0.24 | 2.14 / 0.41 | 3.09 | 1.06 | 0 |
-| random layout (obstacles ±25 cm, start ±0.2 m / ±34°) | 8 | **100 %** | 0.24 / 0.30 | 2.32 / 0.40 | 2.25 | 1.11 | 0 |
-| push (25 N for 0.3 s, random direction) | 6 | **100 %** | 0.38 / 1.00 | 3.94 / 1.38 | 19.7 | 3.49 | 4 |
-| slippery floor (μ 0.25, calibrated at 1.0) | 6 | **100 %** | 0.25 / 0.30 | 1.95 / 0.38 | 2.36 | 1.09 | 0 |
-| encoder-scale error (+4 % / −1 %) | 6 | **100 %** | 0.24 / 0.31 | 1.86 / 0.78 | 2.16 | 1.17 | 0 |
-| degraded camera (×3 pixel noise, 40 % frames lost) | 6 | **100 %** | 0.24 / 0.29 | 2.35 / 0.46 | 1.94 | 1.19 | 0 |
-| combined (push + bias + camera + LiDAR noise ×2) | 6 | **100 %** | 0.31 / 0.60 | 3.20 / 0.90 | 14.6 | 2.61 | 0 |
-
-**Diagnosis of the disturbed cases:**
-* **Push.** The shove moves the robot 18–33 cm in 0.3 s, which odometry cannot see (the
-  wheels mostly skid), so the estimate is suddenly 25–29 cm wrong. The high NEES in this row is
-  that interval. The data show two recovery paths:
-  * **Re-localisation** (4 of 6 trials: s0, s2, s3, s5). Six consecutive camera updates were
-    gated out, the divergence detector reset the filter and the robot spun until it could
-    re-initialise. It recovered in 0.9–1.1 s when tags were already in view, and 7.5–8.1 s when
-    it first had to turn towards them. Mean NEES 6–10.
-  * **Absorption** (s1, s4). The innovations were large but not consistently rejected, so
-    covariance inflation let the filter converge on its own in 9.6–11.9 s. Meanwhile it was
-    over-confident (NEES 18 and 68), which produces most of this row's high NEES. A lower
-    divergence threshold would trade these slow, over-confident recoveries for more resets.
-
-  All 6 still docked (worst 1.0 cm).
-* **Slip and encoder bias** barely change the results: they are slow, systematic odometry
-  errors, and at least one tag is in view most of the time, so the camera corrects them.
-  Without the camera the same bias is what makes the odometry-only ablation fail (Study D).
-* **Degraded camera.** Losing 40 % of frames and tripling the pixel noise raises estimation RMSE
-  by only ≈ 10 %, because R is set from calibrated noise (with floors) and the χ² gate removes
-  the worst detections.
-
-**Ground truth in these numbers** comes from `ground_truth_for_evaluation()` in the logger only.
-
-## 8. Trade-offs and extensions beyond the brief
-
-Full tables in [`results/tradeoffs.md`](results/tradeoffs.md) (`scripts/06_tradeoffs.py`, 3–4 seeds per point).
-
-**A. Consistency against responsiveness (EKF process-noise scale, push scenario).**
-
-| q scale | 0.1 | 0.3 | **1** | 3 | 10 |
-|---|---|---|---|---|---|
-| mean NEES | 26.0 | 11.9 | 27.8 | 8.5 | **5.1** |
-| push recovery [s] | 1.8 | **1.2** | 4.6 | 5.2 | 3.1 |
-| re-localisations (of 3) | 3 | 3 | 2 | 2 | 1 |
-
-With a small q the filter is over-confident, so the push is rejected wholesale. The divergence
-detector then re-localises from scratch, which is *fast* (1–2 s) but means throwing the estimate
-away. With a large q the filter absorbs the push itself (fewer re-localisations, NEES nearer
-consistent) but recovers more slowly, and in normal driving it trusts odometry less. The data
-are noisy with 3 seeds, so we read the trend, not the individual points.
-
-<p align="center"><img src="results/figures/tradeoff_A_process_noise.png" width="900"></p>
-
-**B. Trusting the camera (R scale).** R × 0.1 gives NEES 108, 24 gated updates and a 9.4° yaw RMSE,
-so it is badly over-confident. R × 3 gives NEES 1.2 at the same accuracy. The default (NEES 2.1)
-sits on the safe side of consistency. The low NIS/dof (0.08) shows that the R floors, not the
-calibrated noise, dominate; the floors cover effects a static calibration cannot see (motion
-during the exposure, timing).
-
-**C. Tracking error against control effort (LQR R scale).** Scaling R by 0.1 → 10 halves the
-control chatter (Σ|Δω| 15.2 → 7.5) and cuts ∫ω² by 32 %, while the true cross-track RMSE stays at
-1.1–1.4 cm, within the seed-to-seed spread. **There is no trade-off to exploit here: tracking
-accuracy is limited by estimation error, not control authority.** A less aggressive LQR (R × 3–10)
-would save effort at no measurable cost.
-
-<p align="center"><img src="results/figures/tradeoff_C_lqr.png" width="800"></p>
-
-**D. Which measurements matter.**
-
-| Configuration | Est. RMSE [cm] | Dock err. [cm] | Docked |
+| Tags | Size | Where | Purpose |
 |---|---|---|---|
-| range + bearing + yaw (default) | 1.79 | 0.27 | 4/4 |
-| range + bearing only | **1.60** | 0.25 | 4/4 |
-| odometry only (after initialisation) | 9.15 | 15.75 | **0/4** |
+| 1–6 | 15 cm | Walls, 0.20 m high | Usable to about 3 m: a tag is in range almost everywhere |
+| 0 | 10 cm | Dock, 0.25 m high | Seen on the approach |
+| 7, 8 | 3 cm | Dock, camera height, 10 cm apart | Stay in view down to the docked pose; make the pose observable from range + bearing alone |
 
-The camera is essential: dead reckoning alone ends 6–29 cm from the dock. Tag **yaw adds
-nothing** in this room, because several tags (or the two dock tags) are usually visible and two
-point landmarks already make the pose observable (§3). Range + bearing alone is even slightly
-more consistent (NEES 1.3). Yaw only matters when a single tag is in view, which is exactly the
-case the dock-tag design removes. We keep yaw on by default for that single-tag case and report
-this honestly.
+### Frames
 
-Engagement beyond the tutorial material, each backed by numbers above:
-1. Platform-specific odometry model (speed-dependent radius and turn gain, ICR offset), with
-   UMBmark validation.
-2. View-dependent ArUco noise model, IPPE ambiguity resolution and a range-bias correction.
-3. Observability-driven dock design (two offset tags).
-4. Fault detection: credible-disagreement covariance inflation and divergence detection with
-   re-localisation.
-5. Systematic consistency analysis (NEES/NIS) over 43 Monte Carlo missions and 4 parameter studies.
+| Transform | Value | Source |
+|---|---|---|
+| map → base_link (T_MB) | EKF state (x, y, θ) | estimated |
+| base_link → LiDAR | (−0.035, 0, 0.120) m | robot model |
+| base_link → camera | (0.086, 0, 0.107) m, looking along +x of B | robot model |
+| MuJoCo camera → OpenCV optical | diag(1, −1, −1) (180° about x) | convention |
+| map → tag i (T_MK_i) | Per-tag pose in [`src/config.py`](src/config.py) | known map |
 
-## 9. Limitations (what the results do and do not support)
+### Calibration
 
-* **Simulation only.** Real cameras add blur, rolling shutter, lighting changes and lens
-  distortion; the real LDS-01 has reflectivity-dependent errors. The noise models here are
-  calibrated against the simulator's renderer, so they will need re-measuring on hardware.
-* **The Monte Carlo is small** (5–8 trials per condition). 100 % success over 43 trials bounds the
-  failure rate below ≈ 7 % at 95 % confidence (rule of three), not lower.
-* **EKF consistency is only average-case.** Mean NEES ≈ 3, but the 95 % band holds only 64–78 % of
-  samples (§5). A UKF or an invariant EKF would be the natural next step.
-* **Unmodelled disturbances are handled by detection, not modelling.** The push recovery relies on a
-  divergence detector and re-localisation; a robot that could not see two tags after a push would
-  stay lost until it did.
-* **Known map of tags.** The tag poses are given; mapping errors in them would bias the estimate.
-  The obstacles are *not* known: they are mapped online by LiDAR.
-* **One local friction patch was abandoned.** In MuJoCo its edge trapped the wheels (a simulator
-  artefact), so the slip study uses a uniformly slippery floor instead.
-* **Simulator adjustment.** The menagerie actuator gain was raised (`kv` 0.1 → 1.0, §3). Results
-  depend on that choice being a fair model of a Dynamixel in velocity mode.
+- **Camera:** checkerboard calibration over 56 rendered views at 0.06 px reprojection error.
+  - A pinhole model was chosen on **held-out** views; distortion terms only fitted noise.
+  - Calibrated K: fx = fy = 529.17, cx = 319.37, cy = 239.45.
+  - Our first version assumed cx = 320 (W/2). Pixel coordinates count from the centre of the first pixel, so that was a 0.07° bearing bias. The robot now uses the calibrated K.
+- **Range bias:** detected corners sit slightly inside the true edge, so measured range reads long by 0.0067·r² m for the 10 cm tag (fitted over 1224 frames, subtracted). For other sizes it scales by pinhole similarity, as K·r²/k.
 
-## 10. Repository layout
+### Noise models and measured accuracy
 
-```
-tb3nav/            the pipeline (importable package)
-  world.py         procedural MuJoCo scene: room, obstacles, ArUco tags, dock
-  sim.py           simulator wrapper: actuators, sensor models, disturbances, ground truth (eval only)
-  frames.py        frame definitions and transforms
-  kinematics.py    calibrated differential-drive model
-  sensing.py       odometry, ArUco detection + PnP, noise model, LiDAR helpers
-  model.py         state-space models, linearisation, controllability/observability tools
-  ekf.py           extended Kalman filter
-  controller.py    gain-scheduled LQR tracker, heading controller
-  planner.py       occupancy grid, A*, trajectory generation
-  mission.py       state machine and closed-loop runner
-  scenarios.py     nominal / disturbed test scenarios
-  metrics.py, plots.py, viz.py, batch.py, config.py
-scripts/           00-06, run in order (see table above)
-models/            robot MJCF with camera, LiDAR site, encoders (menagerie meshes + licence reused)
-results/           calibration.json, model_analysis.json, monte_carlo.md, tradeoffs.md, figures/, runs/
-docs/              step_by_step.md
-simulate_turtlebot.py   milestone-1 open-loop actuator test (kept)
-```
+| Sensor | Model | Source |
+|---|---|---|
+| Encoders | 4096 ticks/rev + 0.002 rad jitter | Dynamixel XL430 |
+| LiDAR | σ = max(7.5 mm, 2.5 % of range), 0.12–3.5 m, 1 % dropout | LDS-01 datasheet |
+| Camera | 10 Hz, 640×480, pixel noise σ = 3 grey levels | Pi Camera v2 |
 
-## 11. Individual contributions
+- **Reference model:** fitted on the 10 cm tag (0.3–2.7 m, ±40° viewing angles). Range σ = 1.1 mm·r^3.3, bearing σ = 0.007°·r^1.1, yaw σ = 0.63°·r^2.7.
+- **Other sizes, by pinhole similarity:** a tag k× bigger at k× the range covers the same pixels, so σ_s(r) = k·σ_ref(r/k).
+- **Checked on the 3 cm and 15 cm tags.** The model holds, with two exceptions that change how tags are used:
+  1. **Yaw collapses near 2× the reference range** (12–16° RMS): yaw is used only to 1.75×.
+  2. **The 3 cm tags read a consistently biased yaw** (±0.4–5°): they contribute range and bearing only.
+- **IPPE ambiguity:** both planar pose solutions are kept, and the EKF uses the one that agrees with its estimate.
 
-*Each member edits their own row; see `docs/step_by_step.md` for a suggested split.*
+![Marker measurement quality](part_B_sensing/results/marker_noise.png)
 
-| Member | Contribution |
+---
+
+## Part C: Estimation (EKF)
+
+Folder: [`part_C_estimation/`](part_C_estimation/). Code: [`src/ekf.py`](src/ekf.py).
+
+### Design and parameter values
+
+| Item | Choice | Why |
+|---|---|---|
+| Predict, 50 Hz | Encoder increments through the unicycle model; Q from wheel slip, 1 % of travel | Measured drift is 0.35 %. Study A below: 1 % is the consistent choice under pushes |
+| Encoder rounding in Q | **left out** | Errors on an *absolute* angle cancel between increments; including them made the filter far too pessimistic |
+| Update, per visible tag | z = [range, bearing, tag yaw]; gated at χ² 99 %; falls back to range + bearing | Tag yaw only within 1.75k m and only for tags ≥ 5 cm (Part B) |
+| R | Part B fits scaled by tag size, floors 2 cm / 0.5° / 2°, **× 3** | The camera's errors depend on the viewpoint and repeat frame after frame. With nine tags, R × 1 left the filter 3× over-confident (NEES 6.4); × 3 gave 3.0 with the same accuracy |
+| New information only | Fuse a frame after the robot moves 2 cm or turns 2° (or after 2 s), at most 5 frames/s | Same viewpoint = same error = no new information |
+| Lock-out recovery | After 5 rejections in a row, inflate P on each further rejection | Found in Part E: a bad start otherwise rejects every reading |
+| Latency compensation | Rewind 1 s of history to the frame's capture time, update, replay odometry | Found in Part E: 0.2 s latency otherwise "docked" up to 44 cm off |
+
+### Results (20 Monte Carlo runs)
+
+| | EKF | Odometry only |
+|---|---|---|
+| Position RMSE | **2.4 cm** | 8.1 cm |
+| Heading RMSE | **0.79°** | 2.6° |
+| Final position error | **0.23 cm** | 9.0 cm |
+| Truth inside ±3σ | **100 %** | n/a |
+| Average NEES (ideal 3, bounds 2.0–4.2) | **3.3** | n/a |
+
+![EKF run](part_C_estimation/results/ekf_run.png)
+
+### Studies
+
+**What if R were 10× smaller or larger?**
+
+| R scale | Position RMSE | NEES |
+|---|---|---|
+| ×0.1 | 2.04 cm | **19.6**: badly over-confident; the gate rejects good readings |
+| **×1** | **2.12 cm** | **3.4**: consistent |
+| ×10 | 2.38 cm | 1.2: pessimistic, slow to correct |
+
+**Study A: consistency against responsiveness.** Q scaled ×0.3 to ×10, robot pushed, 6 random layouts each:
+
+- Mean NEES runs 4.3 / **3.2** / 2.0 / 1.3 across the four scales, so the chosen Q is the consistent one.
+- Accuracy is the same at every scale, because with tags almost everywhere the next frame corrects a push before the error reaches 3 cm.
+
+**Study D: which measurements matter.**
+
+| Measurements | Docked | EKF RMSE | Dock error (worst) |
+|---|---|---|---|
+| **Range + bearing + tag yaw** | **6 / 6** | **1.47 cm** | **0.53 cm (0.68)** |
+| Range + bearing only | 6 / 6 | 1.68 cm | 0.67 cm (1.52) |
+| Odometry only | **0 / 6** | 7.58 cm | 8.08 cm (13.5) |
+
+The camera is essential. Tag yaw helps here because often only one or two tags are in view at a time; with several tags always visible, range and bearing alone would be enough.
+
+---
+
+## Part D: Planning and control
+
+Folder: [`part_D_control/`](part_D_control/). Code: [`src/mapping.py`](src/mapping.py), [`src/planner.py`](src/planner.py), [`src/controller.py`](src/controller.py).
+
+### Design
+
+- **Map:** log-odds occupancy grid, 5 cm cells, built online from LiDAR at the EKF pose. The obstacles are never given to the robot.
+- **Planner:** A* with **0.25 m inflation**, which is the circle containing the Waffle Pi footprint around its axle, plus a 0.2 m soft margin. Then line-of-sight shortcuts and smoothing.
+- **Timing:** cruise 0.18 m/s, lateral acceleration ≤ 0.15 m/s², acceleration ≤ 0.2 m/s². Heading and curvature come from a 41 cm Savitzky-Golay derivative, which removed a grid-induced turn-rate wobble.
+- **LQR:** discrete LQR on the linearised tracking error, gain-scheduled on reference speed, u = [v_r cos e₃, ω_r] − K e, with curvature-preserving wheel saturation.
+- **LQR weights by Bryson's rule:** Q = diag(1/0.05², 1/0.05², 1/0.15²), R = diag(1/0.10², 1/0.8²).
+- **At standstill** (v_r = ω_r = 0) the error is uncontrollable (rank 2), so the robot turns on the spot first.
+- **Docking:**
+  - Turn to face the dock 0.6 m out, then follow a 0.32 m cubic Hermite curve ending on the dock axis at 0.06 m/s, with the same LQR.
+  - The two small dock tags stay in view all the way in.
+  - LiDAR backstop: the robot stops if the backplate reads under 0.27 m (0.325 m expected at the dock).
+
+### Results
+
+| Test | Result |
 |---|---|
-| *Name 1* | |
-| *Name 2* | |
-| *Name 3* | |
-| *Name 4* | |
+| Navigate to pre-dock, 3 scenarios × 3 seeds | 9 / 9, no contact; final 0.86 cm / 0.9° |
+| Cross-track error vs **estimate** (controller's view) | 0.8 cm RMS |
+| Cross-track error vs **truth** | **2.2 cm RMS** (4.7 cm with the single dock marker; the wall tags halved it) |
+| Full mission with docking, 9 runs | **9 / 9 docked, 0.63 cm, 0.5°** (2 cm / 3° tolerance) |
 
-## 12. Generative AI declaration
+![Navigation, scenario B](part_D_control/results/nav_B_box_in_way.png)
 
-ChatGPT assisted with the initial MuJoCo setup and the milestone-1 movement test. Claude
-(Anthropic) was used to develop the simulation pipeline in `tb3nav/` and `scripts/`, the analysis,
-and the documentation on the `Claudia` branch. *Team: state how you reviewed, tested and adapted
-this work, and keep this declaration accurate.*
+**Control effort against tracking error** (LQR R ×0.1 / ×1 / ×10):
 
-## 13. Sources
+| R scale | Feedback turn effort | Cross-track error vs truth |
+|---|---|---|
+| ×0.1 | 0.104 rad/s | 0.85 cm |
+| **×1** | **0.069 rad/s** | **0.97 cm** |
+| ×10 | 0.040 rad/s | 1.16 cm |
 
-* Robot model: ROBOTIS `robotis_mujoco_menagerie` (licence retained in `robotis_mujoco_menagerie/robotis_tb3/`).
-* Simulation loop structure: the supplied UR3 tutorial.
-* ROBOTIS TurtleBot3 e-Manual (Waffle Pi dimensions, LDS-01 specifications).
-* Kanayama, Kimura, Miyazaki & Noguchi, *A stable tracking control method for an autonomous mobile robot*, ICRA 1990 (tracking-error model).
-* Collins & Bartoli, *Infinitesimal Plane-Based Pose Estimation*, IJCV 2014 (IPPE, the two-fold planar ambiguity).
-* Borenstein & Feng, *UMBmark: a method for measuring, comparing, and correcting dead-reckoning errors in mobile robots*, University of Michigan technical report, 1994.
-* Bar-Shalom, Li & Kirubarajan, *Estimation with Applications to Tracking and Navigation* (NEES/NIS consistency tests), 2001.
-* Huang, Mourikis & Roumeliotis, *Analysis and improvement of the consistency of EKF-based SLAM*, ICRA 2008 (EKF linearisation inconsistency).
+- With the single marker this curve was flat, because estimation error swamped control.
+- With the wall tags halving that error, a real trade-off appears: +51 % effort buys −12 % error, and −42 % effort costs +20 %.
+
+---
+
+## Part E: Integration and robustness
+
+Folder: [`part_E_integration_and_robustness/`](part_E_integration_and_robustness/) (E1 full mission, E2 trials).
+
+### Trials
+
+Every trial has a random start pose, random obstacle positions and rotation, and a random initial-estimate error. Ten per condition.
+
+| Condition | Docked (2 cm / 3°) | Dock error mean / worst | Worst EKF error in run (median) |
+|---|---|---|---|
+| Nominal | **10 / 10** | 0.52 / 0.68 cm | 3.5 cm |
+| Push: 8 N for 0.2 s, random time and direction | **10 / 10** | 0.56 / 0.65 cm | 2.8 cm |
+| Slip: tyre friction 1.0 → 0.1 | **10 / 10** | 0.51 / 0.69 cm | 3.9 cm |
+| Camera blinded for 10 s | **10 / 10** | 0.55 / 0.74 cm | 4.8 cm |
+| Camera latency 0.2 s | **10 / 10** | 0.50 / 0.62 cm | 8.8 cm |
+| Latency 0.2 s, compensation off | 9 / 10 | 0.80 / 1.62 cm | 9.2 cm |
+| All sensor noise ×2 | **10 / 10** | 0.57 / 0.77 cm | 5.7 cm |
+| Combined: push + slip + blinded + 0.1 s latency | **10 / 10** | 0.59 / 0.91 cm | 6.1 cm |
+
+![Robustness results](part_E_integration_and_robustness/results/trials/success_by_condition.png)
+![Example runs](part_E_integration_and_robustness/results/trials/example_runs.png)
+
+### Failures diagnosed and fixed
+
+Classified automatically, then replayed with a full filter log.
+
+| Failure | Root cause | Part | Fix |
+|---|---|---|---|
+| Latency: "docked" 6–44 cm off, confident | Measurements fused as if current; 0.2 s ≈ 9° at 0.8 rad/s | Estimation | Timestamped frames; EKF rewinds and replays (unit-tested exact) |
+| Noise ×2: 16 cm off | Far range + bearing updates *increased* the error: one tag can't fix heading (rank 2) | Estimation | Size-scaled range limit per tag |
+| Occlusion: 49 cm off | **Gate lock-out:** a bad start made every reading fail the gate | Estimation | Inflate P after 5 rejections in a row |
+| Right place, 3.5–8.6° crooked | Docking path was a straight line from wherever the robot stopped | Planning | Hermite curve ending on the dock axis |
+| Multi-tag filter 3× over-confident (NEES 6.4) | Biased small-tag yaw; viewpoint errors repeating; clustered dock tags | Sensing / estimation | Small tags: range + bearing only; fuse only after moving; R × 3 (NEES 3.0) |
+
+**Single marker against multi-tag:**
+
+- Both docked every trial in the seven real conditions.
+- The tags cut the median worst-case EKF error from 7.6–10.5 cm to 2.8–6.1 cm.
+- A push now moves the estimate under 3 cm, against 5–35 cm before.
+- Without latency compensation, latency is the only condition that still fails.
+
+---
+
+## Limitations
+
+What these results do and don't support:
+
+- **Sample size.** 10/10 per condition bounds the true success rate above about 69 % (95 % confidence) per condition; 70/70 in the seven real conditions, above about 95 %.
+- **Simulation only.** The camera has no lens distortion, blur or rolling shutter, and its bearing noise is unrealistically small. That is why R has floors, and why the R × 3 correction was tuned on consistency, not taken from a datasheet. On hardware, R would need re-measuring.
+- **R × 3 is an empirical correction** for errors that repeat across frames. Modelling them directly, for example with a per-tag bias state, would be the principled next step.
+- **Known tag map.** The tag poses are given; an error in them would bias the estimate. The obstacles are mapped online.
+- **Static world.** The replanning and LiDAR safety stop were implemented but never triggered in 80 trials.
+- **No global re-localisation.** Pushes up to 8 N are recovered by the next camera frame. A large "kidnap" would need a step that re-localises from the tags alone, without trusting the current estimate, and that isn't implemented.
+
+---
+
+## Repository layout and reproducing every result
+
+The repository is organised by the marking guide's parts. Each part folder has a README that opens with what the guide asks for, then the steps in order, the design choices with their values, and the results.
+
+| Folder | Marking part | Steps | Reproduce with | Time |
+|---|---|---|---|---|
+| [`part_A_modelling/`](part_A_modelling/) | **A** Modelling | A1 drive the robot · A2 open-loop test · A3 official-model fixes · A4 controllability/observability (incl. two-tag case), actuator, odometry | `python part_A_modelling/official_model_checks.py`<br>`python part_A_modelling/model_analysis.py` | 40 s |
+| [`part_B_sensing/`](part_B_sensing/) | **B** Sensing | B1 tag map · B2 detection check · B3 frame diagram · B4 noise model · B5 checkerboard calibration | `python part_B_sensing/make_aruco.py`<br>`python part_B_sensing/check_dock_marker.py`<br>`python part_B_sensing/sensor_noise.py`<br>`python part_B_sensing/calibrate_camera.py` | 2 min |
+| [`part_C_estimation/`](part_C_estimation/) | **C** Estimation | C1 EKF Monte Carlo, NEES/NIS, R study · C2 Q-scale and measurement-ablation studies | `python part_C_estimation/run_ekf_test.py`<br>`python part_C_estimation/tradeoff_studies.py` | 6 + 3 min |
+| [`part_D_control/`](part_D_control/) | **D** Control | D1 navigation + LQR trade-off · D2 docking controller | `python part_D_control/run_navigation.py` | 4 min |
+| [`part_E_integration_and_robustness/`](part_E_integration_and_robustness/) | **E** Integration and robustness | E1 full mission + video · E2 80 disturbed trials | `python part_E_integration_and_robustness/run_mission.py --batch`<br>`python part_E_integration_and_robustness/run_trials.py` | 3 + 5 min |
+| [`deliverables/`](deliverables/) | Section 3 checklist | Submission checklist, 5-minute video plan | n/a | n/a |
+
+Shared code, used by every part:
+
+| Folder | Contents |
+|---|---|
+| [`src/`](src/) | The robot's software: `model`, `sensors`, `vision`, `ekf`, `mapping`, `planner`, `controller`, `mission`, `robot`, `config`. **Never reads ground truth** |
+| [`eval/`](eval/) | `ground_truth.py`: the only file that reads the true pose (scoring only) |
+| [`turtlebot3/`](turtlebot3/) | MuJoCo world and robot (official ROBOTIS model + Track A changes) |
+
+Random seeds are fixed, so each script reproduces the numbers on this page.
+
+---
+
+## Individual contributions
+
+> *To be completed by the team. Each member writes their own row: what they designed, implemented, tested and wrote, with the files and parts. Viva questions cover your own part and at least one part you didn't lead.*
+
+| Member (student ID) | Main contributions | Files / phases |
+|---|---|---|
+| *Claudia Ruggiero (ID)* | | |
+| *Lily Natiq (ID)* | | |
+| *name (ID)* | | |
+| *name (ID)* | | |
+
+---
+
+## Generative AI declaration
+
+| Tool | Used for |
+|---|---|
+| **ChatGPT** (OpenAI) | Setup troubleshooting, early project planning, and adapting the initial movement-test script (`part_A_modelling/open_loop_test.py`) |
+| **Codex** (OpenAI) | Generating the original primitive-shape starter robot and the keyboard-driving script (`part_A_modelling/turtlebot_sim.py`, since adapted to the Waffle Pi) |
+| **Claude** (Anthropic, via Claude Code) | Project planning document; writing and debugging code for Parts A–E (tag map and scene, model checks, sensor noise, camera calibration, vision, EKF, mapping, planner, LQR, mission, trials, video recorder); diagnosing the official model's slip, the robustness-trial failures and the multi-tag over-confidence; drafting READMEs and this page |
+
+
+---
+
+## Sources and acknowledgements
+
+- **Robot model:** [ROBOTIS mujoco menagerie](https://github.com/ROBOTIS-GIT/robotis_mujoco_menagerie), TurtleBot3 Waffle Pi, Apache-2.0 ([`turtlebot3/LICENSE_ROBOTIS.txt`](turtlebot3/LICENSE_ROBOTIS.txt)). The unmodified file is kept as `turtlebot3/turtlebot3_waffle_pi_official.xml`; our changes are marked `TRACK A` in `turtlebot3/turtlebot3_waffle_pi_track_a.xml`.
+- **Simulation loop:** structure adapted from the supplied UR3 tutorial (`move_ur3e.py`).
+- **Libraries:** [MuJoCo](https://mujoco.org), [OpenCV](https://opencv.org) (ArUco detection, IPPE solvePnP), NumPy, SciPy (Riccati solver, distance transform, Savitzky-Golay), Matplotlib.
+- **Hardware figures:** ROBOTIS LDS-01 and Dynamixel XL430 datasheets; Raspberry Pi Camera v2 field of view.
+- **Methods:**
+  - EKF consistency tests (NEES/NIS): Bar-Shalom, Li and Kirubarajan, *Estimation with Applications to Tracking and Navigation* (2001).
+  - Tracking-error model: Kanayama et al., "A stable tracking control method for an autonomous mobile robot" (ICRA 1990).
+  - LQR weights by Bryson's rule.
+  - IPPE planar pose and its two-fold ambiguity: Collins and Bartoli, "Infinitesimal Plane-Based Pose Estimation" (IJCV 2014).
