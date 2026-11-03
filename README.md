@@ -7,7 +7,7 @@ A TurtleBot3 Waffle Pi in MuJoCo crosses a room it has never seen, builds a LiDA
 | | |
 |---|---|
 | **Track** | A, mobile robot: visual waypoint navigation |
-| **Team** | Group 15: *Lily Natiq 25333218, Claudia Ruggiero 25476387, Joshua Noh 26253120, Rudra Narayan Sahu 26539837 (see [Individual contributions](#individual-contributions)) |
+| **Team** | Group 15: Lily Natiq 25333218, Claudia Ruggiero 25476387, Joshua Noh 26253120, Rudra Narayan Sahu 26539837 (see [Individual contributions](#individual-contributions)) |
 | **Code** | <https://github.com/Rusa05/Integrated-Project---Sensors-and-Control---group15> |
 | **Demo video (5 min)** | https://drive.google.com/file/d/1N4XdqrG7p8Z1_peL_YKXAWCxa16XoHFZ/view?usp=drive_link |
 
