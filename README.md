@@ -401,7 +401,7 @@ Random seeds are fixed, so each script reproduces the numbers on this page.
 
 > *To be completed by the team. Each member writes their own row: what they designed, implemented, tested and wrote, with the files and parts. Viva questions cover your own part and at least one part you didn't lead.*
 
-| Member (student ID) | Main contributions | Files / phases |
+| Member (student ID) | Main contributions ||
 |---|---|---|
 | *Lily Natiq 25333218* |Part D, video| |
 | *Claudia Ruggiero 25476387* |Part E, video| |
