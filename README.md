@@ -7,9 +7,9 @@ A TurtleBot3 Waffle Pi in MuJoCo crosses a room it has never seen, builds a LiDA
 | | |
 |---|---|
 | **Track** | A, mobile robot: visual waypoint navigation |
-| **Team** | Group 15: *add names and student IDs* (see [Individual contributions](#individual-contributions)) |
+| **Team** | Group 15: Lily Natiq 25333218, Claudia Ruggiero 25476387, Joshua Noh 26253120, Rudra Narayan Sahu 26539837 (see [Individual contributions](#individual-contributions)) |
 | **Code** | <https://github.com/Rusa05/Integrated-Project---Sensors-and-Control---group15> |
-| **Demo video (5 min)** | *add link* |
+| **Demo video (5 min)** | https://drive.google.com/file/d/1N4XdqrG7p8Z1_peL_YKXAWCxa16XoHFZ/view?usp=drive_link |
 
 ![The full mission: EKF estimate and 3σ ellipse (blue), true and estimated paths, plan (orange), robot camera with detected tags](part_E_integration_and_robustness/results/mission/mission_frame.jpg)
 
@@ -316,7 +316,7 @@ Folder: [`part_D_control/`](part_D_control/). Code: [`src/mapping.py`](src/mappi
 
 ---
 
-## Part E: Integration and robustness
+## Part E: Integration and robustness - CLAUDIA
 
 Folder: [`part_E_integration_and_robustness/`](part_E_integration_and_robustness/) (E1 full mission, E2 trials).
 
@@ -401,22 +401,23 @@ Random seeds are fixed, so each script reproduces the numbers on this page.
 
 > *To be completed by the team. Each member writes their own row: what they designed, implemented, tested and wrote, with the files and parts. Viva questions cover your own part and at least one part you didn't lead.*
 
-| Member (student ID) | Main contributions | Files / phases |
+| Member (student ID) | Main contributions ||
 |---|---|---|
-| *Claudia Ruggiero (ID)* | | |
-| *Lily Natiq (ID)* | | |
-| *name (ID)* | | |
-| *name (ID)* | | |
+| *Lily Natiq 25333218* |Part D, video| |
+| *Claudia Ruggiero 25476387* |Part E, video| |
+| *Joshua Noh 26253120* |Part A, B, Github set up| |
+| *Rudra Narayan Sahu 26539837* |Part C, Github file upload, video| |
 
 ---
 
 ## Generative AI declaration
 
+
 | Tool | Used for |
 |---|---|
 | **ChatGPT** (OpenAI) | Setup troubleshooting, early project planning, and adapting the initial movement-test script (`part_A_modelling/open_loop_test.py`) |
 | **Codex** (OpenAI) | Generating the original primitive-shape starter robot and the keyboard-driving script (`part_A_modelling/turtlebot_sim.py`, since adapted to the Waffle Pi) |
-| **Claude** (Anthropic, via Claude Code) | Project planning document; writing and debugging code for Parts A–E (tag map and scene, model checks, sensor noise, camera calibration, vision, EKF, mapping, planner, LQR, mission, trials, video recorder); diagnosing the official model's slip, the robustness-trial failures and the multi-tag over-confidence; drafting READMEs and this page |
+| **Claude** (Anthropic, via Claude Code) | Project planning document; debugging code for Parts A–E (tag map and scene, model checks, sensor noise, camera calibration, vision, EKF, mapping, planner, LQR, mission, trials, video recorder); diagnosing the official model's slip, the robustness-trial failures and the multi-tag over-confidence |
 
 
 ---
